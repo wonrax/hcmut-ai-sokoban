@@ -1,6 +1,8 @@
 import sys
 import os
 import time
+
+# Map symbol constants used in parsing maze from file
 MAZE_HERO       = 'X'
 MAZE_SPACE      = ' '
 MAZE_WALL       = '#'
@@ -49,7 +51,7 @@ class Maze:
                 if c == MAZE_HERO:
                     self.hero_x = x
                     self.hero_y = i
-                    # c = MAZE_SPACE
+                    c = MAZE_SPACE
                 elif c == MAZE_SHELF:
                     self.shelves += 1
                 elif c == MAZE_BOX:
@@ -61,14 +63,47 @@ class Maze:
                 self.maze[i][x] = c
     
     def move(self, nextMove: Move) -> bool:
+        facingObject_x = -1
+        facingObject_y = -1
+        nextFacingObject_x = -1
+        nextFacingObject_y = -1
         if nextMove == Move.LEFT:
-            print("Left object:", self.maze[self.hero_x - 1][self.hero_y])
+            facingObject_x = self.hero_x - 1
+            facingObject_y = self.hero_y
+            nextFacingObject_x = facingObject_x - 1
+            nextFacingObject_y = facingObject_y
         elif nextMove == Move.RIGHT:
-            print("Right object:", self.maze[self.hero_x + 1][self.hero_y])
+            facingObject_x = self.hero_x + 1
+            facingObject_y = self.hero_y
+            nextFacingObject_x = facingObject_x + 1
+            nextFacingObject_y = facingObject_y
         elif nextMove == Move.UP:
-            print("Above object:", self.maze[self.hero_x][self.hero_y - 1])
+            facingObject_x = self.hero_x
+            facingObject_y = self.hero_y - 1
+            nextFacingObject_x = facingObject_x
+            nextFacingObject_y = facingObject_y - 1
         elif nextMove == Move.DOWN:
-            print("Below object:", self.maze[self.hero_x][self.hero_y + 1])
+            facingObject_x = self.hero_x
+            facingObject_y = self.hero_y + 1
+            nextFacingObject_x = facingObject_x
+            nextFacingObject_y = facingObject_y + 1
+        
+        if self.maze[facingObject_x][facingObject_y] in [MAZE_SPACE, MAZE_SHELF]:
+            self.hero_x = facingObject_x
+            self.hero_x = facingObject_y
+        elif self.maze[facingObject_x][facingObject_y] == MAZE_BOX:
+            if self.maze[nextFacingObject_x][nextFacingObject_y] in [MAZE_BOX, MAZE_SHELF_BOX, MAZE_WALL]:
+                return False
+            else:
+                self.hero_x = facingObject_x
+                self.hero_x = facingObject_y
+                self.maze[facingObject_x][facingObject_y] = MAZE_SPACE
+                self.maze[nextFacingObject_x][nextFacingObject_y] = MAZE_BOX
+                return True
+        return False
+
+    def movable(nextMove):
+        pass
 
 def drawMaze(maze):
     os.system('cls||clear')
@@ -78,18 +113,29 @@ def drawMaze(maze):
     #     print((cursor_up + erase_line)*height + cursor_up);
 
     symbolMappings = {MAZE_HERO: "☻", MAZE_BOX: "U", MAZE_WALL: "█", MAZE_SPACE: " ", MAZE_SHELF: "*", MAZE_SHELF_BOX: "O"}
-    for row in maze.maze:
-        for c in row:
-            print(symbolMappings[c], end="")
+    for i, row in enumerate(maze.maze):
+        for j, c in enumerate(row):
+            if maze.hero_x == i and maze.hero_y == j:
+                print(symbolMappings[MAZE_HERO])
+            else:
+                print(symbolMappings[c], end="")
         print("")
         
 
 maze = Maze("src/map.txt")
 drawMaze(maze)
-maze.move(Move.LEFT)
-maze.move(Move.RIGHT)
-maze.move(Move.UP)
-maze.move(Move.DOWN)
+time.sleep(0.2)
+print(maze.move(Move.LEFT))
+drawMaze(maze)
+time.sleep(10)
+print(maze.move(Move.RIGHT))
+drawMaze(maze)
+time.sleep(0.2)
+print(maze.move(Move.UP))
+drawMaze(maze)
+time.sleep(0.2)
+print(maze.move(Move.DOWN))
+drawMaze(maze)
 # maze.maze[0][0] = "X"
 # time.sleep(0.2)
 # drawMaze(maze)
