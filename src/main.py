@@ -16,10 +16,17 @@ class Move:
 
 class Maze:
     def __init__(self, mapFilePath) -> None:
+        # Width and height of the bounding box (also the size of the 2D array)
         self.height = 0
         self.width = 0
+
+        # Number of shelves
         self.shelves = 0
+
+        # Number of boxes
         self.boxes = 0
+
+        # Number of shelfbox (the shelves that are filled with box)
         self.shelfbox = 0
 
         with open(mapFilePath, "r") as txt_file:
