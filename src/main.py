@@ -62,6 +62,13 @@ class Maze:
                     self.boxes += 1
                 self.maze[i][x] = c
     
+    def getMazeElement(self, x: int, y: int) -> str:
+        return self.maze[y][x]
+
+    def setMazeElement(self, x: int, y: int, value: str) -> bool:
+        self.maze[y][x] = value
+        return True
+
     def move(self, nextMove: Move) -> bool:
         facingObject_x = -1
         facingObject_y = -1
@@ -88,17 +95,18 @@ class Maze:
             nextFacingObject_x = facingObject_x
             nextFacingObject_y = facingObject_y + 1
         
-        if self.maze[facingObject_x][facingObject_y] in [MAZE_SPACE, MAZE_SHELF]:
+        facingObject = self.getMazeElement(facingObject_x, facingObject_y)
+        if facingObject in [MAZE_SPACE, MAZE_SHELF]:
             self.hero_x = facingObject_x
-            self.hero_x = facingObject_y
-        elif self.maze[facingObject_x][facingObject_y] == MAZE_BOX:
-            if self.maze[nextFacingObject_x][nextFacingObject_y] in [MAZE_BOX, MAZE_SHELF_BOX, MAZE_WALL]:
-                return False
-            else:
+            self.hero_y = facingObject_y
+            return True
+        elif facingObject in [MAZE_BOX, MAZE_SHELF_BOX]:
+            nextFacingObject = self.getMazeElement(nextFacingObject_x, nextFacingObject_y)
+            if nextFacingObject in [MAZE_SPACE, MAZE_SHELF]:
                 self.hero_x = facingObject_x
-                self.hero_x = facingObject_y
-                self.maze[facingObject_x][facingObject_y] = MAZE_SPACE
-                self.maze[nextFacingObject_x][nextFacingObject_y] = MAZE_BOX
+                self.hero_y = facingObject_y
+                self.setMazeElement(facingObject_x, facingObject_y, MAZE_SPACE if facingObject == MAZE_BOX else MAZE_SHELF)
+                self.setMazeElement(nextFacingObject_x, nextFacingObject_y, MAZE_BOX if nextFacingObject == MAZE_SPACE else MAZE_SHELF_BOX)
                 return True
         return False
 
@@ -115,30 +123,28 @@ def drawMaze(maze):
     symbolMappings = {MAZE_HERO: "☻", MAZE_BOX: "U", MAZE_WALL: "█", MAZE_SPACE: " ", MAZE_SHELF: "*", MAZE_SHELF_BOX: "O"}
     for i, row in enumerate(maze.maze):
         for j, c in enumerate(row):
-            if maze.hero_x == i and maze.hero_y == j:
-                print(symbolMappings[MAZE_HERO])
+            if maze.hero_x == j and maze.hero_y == i:
+                print(symbolMappings[MAZE_HERO], end="")
             else:
                 print(symbolMappings[c], end="")
-        print("")
+        print("") # new line
         
 
 maze = Maze("src/map.txt")
 drawMaze(maze)
-time.sleep(0.2)
-print(maze.move(Move.LEFT))
-drawMaze(maze)
-time.sleep(10)
-print(maze.move(Move.RIGHT))
-drawMaze(maze)
-time.sleep(0.2)
-print(maze.move(Move.UP))
-drawMaze(maze)
-time.sleep(0.2)
-print(maze.move(Move.DOWN))
-drawMaze(maze)
-# maze.maze[0][0] = "X"
-# time.sleep(0.2)
-# drawMaze(maze)
-# maze.maze[0][1] = "X"
-# time.sleep(0.2)
-# drawMaze(maze)
+
+import msvcrt
+while True:
+    if msvcrt.kbhit():
+        getChr = msvcrt.getch()
+        if getChr == b'K':
+            maze.move(Move.LEFT)
+        elif getChr == b'M':
+            maze.move(Move.RIGHT)
+        elif getChr == b'H':
+            maze.move(Move.UP)
+        elif getChr == b'P':
+            maze.move(Move.DOWN)
+        elif getChr == b'\x1b':
+            break
+        drawMaze(maze)
