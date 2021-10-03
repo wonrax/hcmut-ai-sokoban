@@ -113,24 +113,31 @@ class Maze:
     def movable(nextMove):
         pass
 
-def drawMaze(maze):
-    os.system('cls||clear')
+SYMBOLS_MAPPINGS = {MAZE_HERO: "☻", MAZE_BOX: "U", MAZE_WALL: "█", MAZE_SPACE: " ", MAZE_SHELF: "*", MAZE_SHELF_BOX: "O"}
+def drawMaze(maze, row_count = 0):
+    rows_full = row_count + 1
+    print("\033[F"*rows_full)
+
+    # os.system('cls||clear')
     # if not noClear:
     #     cursor_up = '\x1b[1A';
     #     erase_line = '\x1b[2K';
     #     print((cursor_up + erase_line)*height + cursor_up);
 
-    symbolMappings = {MAZE_HERO: "☻", MAZE_BOX: "U", MAZE_WALL: "█", MAZE_SPACE: " ", MAZE_SHELF: "*", MAZE_SHELF_BOX: "O"}
+    console_output_string = ""
     for i, row in enumerate(maze.maze):
         for j, c in enumerate(row):
             if maze.hero_x == j and maze.hero_y == i:
-                print(symbolMappings[MAZE_HERO], end="")
+                console_output_string += SYMBOLS_MAPPINGS[MAZE_HERO]
             else:
-                print(symbolMappings[c], end="")
-        print("") # new line
-        
+                console_output_string += SYMBOLS_MAPPINGS[c]
+        console_output_string += "\n" # new line
+    
+    print(console_output_string, end="")
 
 maze = Maze("src/map.txt")
+maze_rows = maze.height
+# os.system('cls||clear')
 drawMaze(maze)
 
 import msvcrt
@@ -147,4 +154,4 @@ while True:
             maze.move(Move.DOWN)
         elif getChr == b'\x1b':
             break
-        drawMaze(maze)
+        drawMaze(maze, maze_rows)
