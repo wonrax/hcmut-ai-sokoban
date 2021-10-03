@@ -16,6 +16,16 @@ class Move:
     UP = 2
     DOWN = 3
 
+class State:
+    def __init__(self, maze: str, x: int, y: int) -> None:
+        self.maze = maze
+        self.x = x
+        self.y = y
+    
+    def __eq__(self, o: object) -> bool:
+        if self.x == o.x and self.y == o.y and self.maze == o.maze:
+            return True
+        return False
 class Maze:
     def __init__(self, mapFilePath) -> None:
         # Width and height of the bounding box (also the size of the 2D array)
@@ -134,7 +144,7 @@ class Maze:
     def movable(nextMove):
         pass
 
-class GameController:
+class GraphicController:
     SYMBOLS_MAPPINGS = {MAZE_HERO: "☻", MAZE_BOX: "U", MAZE_WALL: "█", MAZE_SPACE: " ", MAZE_SHELF: "*", MAZE_SHELF_BOX: "O"}
     drawnRows = 0
 
@@ -142,33 +152,87 @@ class GameController:
         
         # Move the cursor to the beginning
         # prepare for the next draw
-        rows_full = GameController.drawnRows + 1
+        rows_full = GraphicController.drawnRows + 1
         print("\033[F"*rows_full)
 
-        GameController.drawnRows = 0
+        GraphicController.drawnRows = 0
         console_output_string = ""
         for i, row in enumerate(maze.maze):
             for j, c in enumerate(row):
                 if maze.hero_x == j and maze.hero_y == i:
-                    console_output_string += GameController.SYMBOLS_MAPPINGS[MAZE_HERO]
+                    console_output_string += GraphicController.SYMBOLS_MAPPINGS[MAZE_HERO]
                 else:
-                    console_output_string += GameController.SYMBOLS_MAPPINGS[c]
+                    console_output_string += GraphicController.SYMBOLS_MAPPINGS[c]
             console_output_string += "\n" # new line
-            GameController.drawnRows += 1
+            GraphicController.drawnRows += 1
         if maze.wonTheGame():
-            console_output_string += "Won the game!"
+            console_output_string += "\nWon the game!"
         else:
-            console_output_string += "No of moves: " + str(maze.no_of_moves)
+            console_output_string += "No of moves: " + str(maze.no_of_moves) + "                      "
         print(console_output_string, end="")
+    
+import random
+import copy
+class AIController:
 
+    def run(self, maze: Maze, moveLimit = 1000000):
+        self.moveLimit = moveLimit
+        self.maze = maze
+        self.solution = []
+        self.explored = []
+        try:
+            self.move(0)
+        except KeyboardInterrupt:
+            os.system('cls||clear')
+            print("Exitting gracefully...")
+            
+    def move(self, no_of_moves) -> bool:
+        if self.maze.wonTheGame():
+            os.system('cls||clear')
+            GraphicController.reDraw(self.maze)
+            time.sleep(2)
+            return True
+        if no_of_moves > self.moveLimit:
+            return False
+        else:
+            move_list = [Move.LEFT, Move.RIGHT, Move.UP, Move.DOWN]
+            random.shuffle(move_list)
+            maze_copy = copy.deepcopy(self.maze)
+            for moveDir in move_list:
+                self.maze = maze_copy
+                if self.maze.move(moveDir):
+                    # GraphicController.reDraw(self.maze)
+                    # time.sleep(0.2)
+                    if self.move(no_of_moves + 1):
+                        self.solution.append(moveDir)
+                        return True
+            return False
+
+DIR_TO_TEXT_MAPPINGS = {
+    Move.LEFT: "Left",
+    Move.RIGHT: "Right",
+    Move.UP: "Up",
+    Move.DOWN: "Down"
+}
 def main():
     maze = Maze("src/map.txt")
-    GameController.reDraw(maze)
+    GraphicController.reDraw(maze)
 
     if len(sys.argv) > 1:
         if sys.argv[1] == "-a":
             # RUN AI CODE
-            pass
+            ai = AIController()
+            ai.run(maze, 16)
+            maze = Maze("src/map.txt")
+            os.system('cls||clear')
+            GraphicController.reDraw(maze)
+            for x in ai.solution[::-1]:
+
+                print(DIR_TO_TEXT_MAPPINGS[x], end=" ")
+                # maze.move(x)
+                # GraphicController.reDraw(maze)
+                # time.sleep(0.5)
+
     else:
         import msvcrt
         while True:
@@ -185,7 +249,7 @@ def main():
                 elif getChr == b'\x1b':
                     break
                 if getChr in [b'K', b'M', b'H', b'P']:
-                    GameController.reDraw(maze)
+                    GraphicController.reDraw(maze)
 
 if __name__ == "__main__":
     main()
