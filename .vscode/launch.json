@@ -5,11 +5,21 @@
 	"version": "0.2.0",
 	"configurations": [
 		{
-			"name": "Python: Current File",
+			"name": "Run main",
 			"type": "python",
 			"request": "launch",
-			"program": "${file}",
-			"console": "integratedTerminal"
+			"program": "${workspaceFolder}/src/main.py",
+			"console": "integratedTerminal",
+			"cwd": "${workspaceFolder}",
+			"args": ["-a"],
+		},
+		{
+			"name": "Run interactive",
+			"type": "python",
+			"request": "launch",
+			"program": "${workspaceFolder}/src/main.py",
+			"console": "integratedTerminal",
+			"cwd": "${workspaceFolder}",
 		}
 	]
 }
