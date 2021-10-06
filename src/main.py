@@ -187,10 +187,11 @@ class AIController:
             print("Exitting gracefully...")
             
     def move(self, no_of_moves) -> bool:
+        # GraphicController.reDraw(self.maze)
+        # print("recursive moves: ", no_of_moves, end="")
         if self.maze.wonTheGame():
             os.system('cls||clear')
             GraphicController.reDraw(self.maze)
-            time.sleep(2)
             return True
         if no_of_moves > self.moveLimit:
             return False
@@ -199,7 +200,7 @@ class AIController:
             random.shuffle(move_list)
             maze_copy = copy.deepcopy(self.maze)
             for moveDir in move_list:
-                self.maze = maze_copy
+                self.maze = copy.deepcopy(maze_copy)
                 if self.maze.move(moveDir):
                     # GraphicController.reDraw(self.maze)
                     # time.sleep(0.2)
@@ -215,6 +216,7 @@ DIR_TO_TEXT_MAPPINGS = {
     Move.DOWN: "Down"
 }
 def main():
+    t1 = time.time()
     maze = Maze("src/map.txt")
     GraphicController.reDraw(maze)
 
@@ -222,16 +224,20 @@ def main():
         if sys.argv[1] == "-a":
             # RUN AI CODE
             ai = AIController()
-            ai.run(maze, 16)
+            ai.run(maze, 40)
+            t2 = time.time()
             maze = Maze("src/map.txt")
+            os.system('cls||clear')
+            input("Enter to run the result")
             os.system('cls||clear')
             GraphicController.reDraw(maze)
             for x in ai.solution[::-1]:
 
                 print(DIR_TO_TEXT_MAPPINGS[x], end=" ")
-                # maze.move(x)
-                # GraphicController.reDraw(maze)
-                # time.sleep(0.5)
+                maze.move(x)
+                GraphicController.reDraw(maze)
+                time.sleep(0.5)
+            print("\nTime taken: ", t2 - t1, " seconds")
 
     else:
         import msvcrt
