@@ -2,47 +2,216 @@ import sys
 import os
 import time
 
-# Map symbol constants used in parsing maze from file
-MAZE_HERO       = 'X'
-MAZE_SPACE      = ' '
-MAZE_WALL       = '#'
-MAZE_BOX        = 'U'
-MAZE_SHELF      = '*'
-MAZE_SHELF_BOX  = 'O'       # the shelf with box
 
 class Move:
-    LEFT = 0
-    RIGHT = 1
-    UP = 2
-    DOWN = 3
+    DIR_LEFT = 0
+    DIR_RIGHT = 1
+    DIR_UP = 2
+    DIR_DOWN = 3
+
+    DIR_MOVE_MAPPING: dict[int, tuple] = {
+        DIR_LEFT: (-1, 0),
+        DIR_RIGHT: (1, 0),
+        DIR_UP: (0, -1),
+        DIR_DOWN: (0, 1),
+    }
+
+    def __init__(self, direction: int) -> None:
+        self.dir = direction
+    
+    '''
+    Return the new location after perform the move
+    '''
+    def move(self, old_location: tuple[int]) -> tuple[int]:
+        return (old_location[0] + Move.DIR_MOVE_MAPPING[self.dir][0], old_location[1] + Move.DIR_MOVE_MAPPING[self.dir][1])
+
+LEFT = Move(Move.DIR_LEFT)
+RIGHT = Move(Move.DIR_RIGHT)
+UP = Move(Move.DIR_UP)
+DOWN = Move(Move.DIR_DOWN)
 
 class State:
-    def __init__(self, maze: str, x: int, y: int) -> None:
-        self.maze = maze
-        self.x = x
-        self.y = y
+    def __init__(self, hero: tuple[int], boxes: set[tuple[int]], walls: set[tuple[int]], shelves: set[tuple[int]]) -> None:
+        self.hero = hero
+        self.walls = walls
+        self.shelves = shelves
+        self.boxes = boxes
+        self.hash = hash((self.hero, frozenset(self.boxes)))
     
     def __eq__(self, o: object) -> bool:
-        if self.x == o.x and self.y == o.y and self.maze == o.maze:
-            return True
+        if not isinstance(o, State):
+            return False
+        return self.hash == o.hash
+
+    def next_state(self, direction: Move):
+        hero_new_location = direction.move(self.hero)
+
+        if hero_new_location in self.walls:
+            return None
+
+        new_boxes_location: set = self.boxes.copy()
+
+        if hero_new_location in self.boxes:
+            pushed_box_location = direction.move(hero_new_location)
+
+            if pushed_box_location in self.walls:
+                return None
+
+            if pushed_box_location in self.boxes:
+                return None
+
+            new_boxes_location.discard(hero_new_location)
+            new_boxes_location.add(pushed_box_location)
+        
+        return State(hero_new_location, new_boxes_location, self.walls, self.shelves)
+    
+    def generate_possible_next_states(self) -> list[object]:
+        next_states = []
+        for direction in [LEFT, RIGHT, UP, DOWN]:
+            new_state = self.next_state(direction)
+            if new_state is not None:
+                next_states.append(new_state)
+
+        return next_states
+    
+    def is_goal_state(self):
+        return self.boxes == self.shelves
+    
+    def contain_deadend(self):
+        CHECK_MAPPINGS = {
+            LEFT: (UP, DOWN),
+            RIGHT: (UP, DOWN),
+            UP: (LEFT, RIGHT),
+            DOWN: (LEFT, RIGHT),
+        }
+        obstacles = self.walls
+        for checking_box in self.boxes:
+            # Corner check
+            for direction in [LEFT, RIGHT, UP, DOWN]:
+                new_orthogonal_location = direction.move(checking_box)
+                if not new_orthogonal_location in obstacles:
+                    continue
+                else:
+                    for sub_direction in CHECK_MAPPINGS[direction]:
+                        if sub_direction.move(checking_box) in obstacles:
+                            return True
+            # Boundary check
+            def check_boundary(dir: Move):
+                if dir.move(checking_box) in self.walls:
+                    if dir is UP:
+                        pass
+                    bound_1 = None
+                    bound_2 = None
+                    current_location = checking_box
+                    while True:
+                        current_location = CHECK_MAPPINGS[dir][0].move(current_location)
+                        if current_location in self.walls:
+                            bound_1 = current_location[1 if dir in [LEFT, RIGHT] else 0]
+                            break
+                    current_location = checking_box
+                    while True:
+                        current_location = CHECK_MAPPINGS[dir][1].move(current_location)
+                        if current_location in self.walls:
+                            bound_2 = current_location[1 if dir in [LEFT, RIGHT] else 0]
+                            break
+                    side_wall = dir.move(checking_box)[0 if dir in [LEFT, RIGHT] else 1]
+                    for i in range(bound_1 + 1, bound_2):
+                        if dir in [LEFT, RIGHT]:
+                            if (side_wall, i) not in self.walls:
+                                break
+                        else:
+                            if (i, side_wall) not in self.walls:
+                                break
+                    else: return True
+            for dir in [LEFT, RIGHT, UP, DOWN]:
+                if check_boundary(dir): return True
+            # if RIGHT.move(checking_box) in self.walls:
+            #     current_location = checking_box
+            #     upper_bound_y = None
+            #     lower_bound_y = None
+            #     while True:
+            #         current_location = UP.move(current_location)
+            #         if current_location in self.walls:
+            #             upper_bound_y = current_location[1]
+            #             break
+            #     while True:
+            #         current_location = DOWN.move(current_location)
+            #         if current_location in self.walls:
+            #             lower_bound_y = current_location[1]
+            #             break
+            #     left_wall_x = RIGHT.move(checking_box)[0]
+            #     for y in range(upper_bound_y + 1, lower_bound_y):
+            #         if (left_wall_x, y) not in self.walls:
+            #             break
+            #     else: return True
+
         return False
-class Maze:
-    def __init__(self, mapFilePath) -> None:
-        # Width and height of the bounding box (also the size of the 2D array)
+
+
+class Node:
+    def __init__(self, state: State, parent = None) -> None:
+        self.state = state
         self.height = 0
-        self.width = 0
+        if parent and isinstance(parent, Node):
+            self.height = parent.height + 1
+        self.parent = parent
+    def __eq__(self, o: object) -> bool:
+        if not isinstance(o, Node):
+            return False
+        return self.state == o.state
+    def is_goal_node(self):
+        return self.state.is_goal_state()
 
-        # Number of shelves
-        self.shelves = 0
+class Tree:
+    def __init__(self, root: Node) -> None:
+        self.visited = [root]
+        self.current_node = root
+        self.pending_nodes: list[Node] = []
+        self.pop = self.pending_nodes.pop
+        self.insert = self.pending_nodes.append
+        
+    def search(self):
+        while True:
+            # GraphicController.reDraw(self.current_node.state)
+            if self.current_node.is_goal_node():
+                return self.current_node
+            if self.current_node.state.contain_deadend():
+                if not self.pending_nodes: break
+                self.current_node = self.pending_nodes.pop()
+                continue
+            next_states = self.current_node.state.generate_possible_next_states()
+            for state in next_states:
+                new_node = Node(state, self.current_node)
+                if new_node in self.visited:
+                    continue
+                self.insert(new_node)
+            
+            if not self.pending_nodes: break
+            self.current_node = self.pop()
+            self.visited.append(self.current_node)
+        return False
 
-        # Number of boxes
-        self.boxes = 0
+class Maze:
+    # Map symbol constants used in parsing maze from file
+    MAZE_HERO       = 'X'
+    MAZE_SPACE      = ' '
+    MAZE_WALL       = '#'
+    MAZE_BOX        = 'U'
+    MAZE_SHELF      = '*'
+    MAZE_SHELF_BOX  = 'O'       # the shelf with box
 
-        # Number of shelfbox (the shelves that are filled with box)
-        self.shelfbox = 0
+    def __init__(self, mapFilePath) -> None:
+        # Hero location
+        self.hero: tuple(int)
 
-        # Number of moves
-        self.no_of_moves = 0
+        # Shelves location
+        self.shelves: set[tuple[int]] = set()
+
+        # Boxes location
+        self.boxes: set[tuple[int]] = set()
+
+        # Walls location
+        self.walls: set[tuple[int]] = set()
 
         with open(mapFilePath, "r") as txt_file:
             lines = txt_file.readlines()
@@ -51,211 +220,141 @@ class Maze:
                 line = line.rstrip()
                 if not line:
                     continue
-                self.height += 1
                 str_maze.append(line)
-                self.width = max(self.width, len(line))
 
-        self.maze = [None] * self.height
         for i in range(len(str_maze)):
             row = str_maze[i]
-            self.maze[i] = [MAZE_SPACE] * self.width
             for x in range(len(row)):
                 c = row[x]
-                if c == MAZE_HERO:
-                    self.hero_x = x
-                    self.hero_y = i
-                    c = MAZE_SPACE
-                elif c == MAZE_SHELF:
-                    self.shelves += 1
-                elif c == MAZE_BOX:
-                    self.boxes += 1
-                elif c == MAZE_SHELF_BOX:
-                    self.shelfbox += 1
-                    self.shelves += 1
-                    self.boxes += 1
-                self.maze[i][x] = c
-    
-    def getMazeElement(self, x: int, y: int) -> str:
-        return self.maze[y][x]
+                if c == Maze.MAZE_WALL:
+                    self.walls.add((x, i))
+                elif c == Maze.MAZE_HERO:
+                    self.hero = (x, i)
+                elif c == Maze.MAZE_SHELF:
+                    self.shelves.add((x, i))
+                elif c == Maze.MAZE_BOX:
+                    self.boxes.add((x, i))
+                elif c == Maze.MAZE_SHELF_BOX:
+                    self.boxes.add((x, i))
+                    self.shelves.add((x, i))
 
-    def setMazeElement(self, x: int, y: int, value: str) -> bool:
-        self.maze[y][x] = value
-        return True
-    
-    def wonTheGame(self):
-        return self.shelves == self.shelfbox
-    
-    def move(self, nextMove) -> bool:
-        success = self.performMove(nextMove)
-        if success:
-            self.no_of_moves += 1
-
-        return success
-
-    def performMove(self, nextMove: Move) -> bool:
-        facingObject_x = -1
-        facingObject_y = -1
-        nextFacingObject_x = -1
-        nextFacingObject_y = -1
-        if nextMove == Move.LEFT:
-            facingObject_x = self.hero_x - 1
-            facingObject_y = self.hero_y
-            nextFacingObject_x = facingObject_x - 1
-            nextFacingObject_y = facingObject_y
-        elif nextMove == Move.RIGHT:
-            facingObject_x = self.hero_x + 1
-            facingObject_y = self.hero_y
-            nextFacingObject_x = facingObject_x + 1
-            nextFacingObject_y = facingObject_y
-        elif nextMove == Move.UP:
-            facingObject_x = self.hero_x
-            facingObject_y = self.hero_y - 1
-            nextFacingObject_x = facingObject_x
-            nextFacingObject_y = facingObject_y - 1
-        elif nextMove == Move.DOWN:
-            facingObject_x = self.hero_x
-            facingObject_y = self.hero_y + 1
-            nextFacingObject_x = facingObject_x
-            nextFacingObject_y = facingObject_y + 1
-        
-        facingObject = self.getMazeElement(facingObject_x, facingObject_y)
-
-        if facingObject in [MAZE_SPACE, MAZE_SHELF]:
-            # Perform move only, don't push anything
-            self.hero_x = facingObject_x
-            self.hero_y = facingObject_y
-            return True
-        
-        elif facingObject in [MAZE_BOX, MAZE_SHELF_BOX]:
-            nextFacingObject = self.getMazeElement(nextFacingObject_x, nextFacingObject_y)
-            if nextFacingObject in [MAZE_SPACE, MAZE_SHELF]:
-                # Push the box to the next position
-                self.hero_x = facingObject_x
-                self.hero_y = facingObject_y
-                self.setMazeElement(facingObject_x, facingObject_y, MAZE_SPACE if facingObject == MAZE_BOX else MAZE_SHELF)
-                self.setMazeElement(nextFacingObject_x, nextFacingObject_y, MAZE_BOX if nextFacingObject == MAZE_SPACE else MAZE_SHELF_BOX)
-                if facingObject == MAZE_BOX and nextFacingObject == MAZE_SHELF:
-                    self.shelfbox += 1
-                elif facingObject == MAZE_SHELF_BOX and nextFacingObject == MAZE_SPACE:
-                    self.shelfbox -= 1
-                return True
-        return False
-
-    def movable(nextMove):
-        pass
-
+    def build_state(self) -> State:
+        return State(self.hero, self.boxes, self.walls, self.shelves)
 class GraphicController:
-    SYMBOLS_MAPPINGS = {MAZE_HERO: "☻", MAZE_BOX: "U", MAZE_WALL: "█", MAZE_SPACE: " ", MAZE_SHELF: "*", MAZE_SHELF_BOX: "O"}
+    SYMBOLS_MAPPINGS = {Maze.MAZE_HERO: "☻", Maze.MAZE_BOX: "U", Maze.MAZE_WALL: "█", Maze.MAZE_SPACE: " ", Maze.MAZE_SHELF: "*", Maze.MAZE_SHELF_BOX: "O"}
     drawnRows = 0
+    
+    def print(string: str):
+        print(string)
+        GraphicController.drawnRows += 1
 
-    def reDraw(maze: Maze):
+    def reDraw(state: State):
+        
+        if state is None:
+            return
         
         # Move the cursor to the beginning
         # prepare for the next draw
         rows_full = GraphicController.drawnRows + 1
-        print("\033[F"*rows_full)
+        print("\033[F" * rows_full)
 
         GraphicController.drawnRows = 0
-        console_output_string = ""
-        for i, row in enumerate(maze.maze):
-            for j, c in enumerate(row):
-                if maze.hero_x == j and maze.hero_y == i:
-                    console_output_string += GraphicController.SYMBOLS_MAPPINGS[MAZE_HERO]
-                else:
-                    console_output_string += GraphicController.SYMBOLS_MAPPINGS[c]
-            console_output_string += "\n" # new line
+
+        # Find the maze bound
+        max_wall_x = 0
+        max_wall_y = 0
+        for wall in state.walls:
+            wall_location = wall[0]
+            y = wall[1]
+            max_wall_x = wall_location if wall_location > max_wall_x else max_wall_x
+            max_wall_y = y if y > max_wall_y else max_wall_y
+        
+        maze = [[GraphicController.SYMBOLS_MAPPINGS[Maze.MAZE_SPACE] for x in range(max_wall_x + 1)] for y in range(max_wall_y + 1)]
+        for wall_location in state.walls:
+            maze[wall_location[1]][wall_location[0]] = GraphicController.SYMBOLS_MAPPINGS[Maze.MAZE_WALL]
+        for shelf_location in state.shelves:
+            if shelf_location in state.boxes:
+                maze[shelf_location[1]][shelf_location[0]] = GraphicController.SYMBOLS_MAPPINGS[Maze.MAZE_SHELF_BOX]
+            else:
+                maze[shelf_location[1]][shelf_location[0]] = GraphicController.SYMBOLS_MAPPINGS[Maze.MAZE_SHELF]
+        for box_location in state.boxes:
+            if not box_location in state.shelves:
+                maze[box_location[1]][box_location[0]] = GraphicController.SYMBOLS_MAPPINGS[Maze.MAZE_BOX]
+
+        maze[state.hero[1]][state.hero[0]] = GraphicController.SYMBOLS_MAPPINGS[Maze.MAZE_HERO]
+        
+        print_string = ""
+        for row in maze:
+            for col in row:
+                print_string += col
+            print_string += "\n"
             GraphicController.drawnRows += 1
-        if maze.wonTheGame():
-            console_output_string += "\nWon the game!"
-        else:
-            console_output_string += "No of moves: " + str(maze.no_of_moves) + "                      "
-        print(console_output_string, end="")
+        
+        print(print_string)
+        GraphicController.drawnRows += 1
+        
+        sys.stdout.write('\033[2K\033[1G')
+        if state.is_goal_state():
+            print("Won the game!")
+        else: print("")
+        GraphicController.drawnRows += 1
     
-import random
-import copy
 class AIController:
 
-    def run(self, maze: Maze, moveLimit = 1000000):
-        self.moveLimit = moveLimit
-        self.maze = maze
-        self.solution = []
-        self.explored = []
-        try:
-            self.move(0)
-        except KeyboardInterrupt:
-            os.system('cls||clear')
-            print("Exitting gracefully...")
-            
-    def move(self, no_of_moves) -> bool:
-        # GraphicController.reDraw(self.maze)
-        # print("recursive moves: ", no_of_moves, end="")
-        if self.maze.wonTheGame():
-            os.system('cls||clear')
-            GraphicController.reDraw(self.maze)
-            return True
-        if no_of_moves > self.moveLimit:
-            return False
-        else:
-            move_list = [Move.LEFT, Move.RIGHT, Move.UP, Move.DOWN]
-            random.shuffle(move_list)
-            maze_copy = copy.deepcopy(self.maze)
-            for moveDir in move_list:
-                self.maze = copy.deepcopy(maze_copy)
-                if self.maze.move(moveDir):
-                    # GraphicController.reDraw(self.maze)
-                    # time.sleep(0.2)
-                    if self.move(no_of_moves + 1):
-                        self.solution.append(moveDir)
-                        return True
-            return False
+    def run(self, root: Node):
+        tree = Tree(root)
+        while True:
+            tree.current_node.state.generate_possible_next_states()
 
-DIR_TO_TEXT_MAPPINGS = {
-    Move.LEFT: "Left",
-    Move.RIGHT: "Right",
-    Move.UP: "Up",
-    Move.DOWN: "Down"
-}
 def main():
     t1 = time.time()
-    maze = Maze("src/map.txt")
-    GraphicController.reDraw(maze)
+    maze = Maze("src/maps/micro1.txt")
+    initial_state = maze.build_state()
+    GraphicController.reDraw(initial_state)
 
     if len(sys.argv) > 1:
-        if sys.argv[1] == "-a":
-            # RUN AI CODE
-            ai = AIController()
-            ai.run(maze, 40)
-            t2 = time.time()
-            maze = Maze("src/map.txt")
-            os.system('cls||clear')
-            input("Enter to run the result")
-            os.system('cls||clear')
-            GraphicController.reDraw(maze)
-            for x in ai.solution[::-1]:
-
-                print(DIR_TO_TEXT_MAPPINGS[x], end=" ")
-                maze.move(x)
-                GraphicController.reDraw(maze)
-                time.sleep(0.5)
-            print("\nTime taken: ", t2 - t1, " seconds")
+        if sys.argv[1] == "-i":
+            import msvcrt
+            state = initial_state
+            while True:
+                if msvcrt.kbhit():
+                    getChr = msvcrt.getch()
+                    new_state = None
+                    if getChr == b'K':
+                        new_state = state.next_state(LEFT)
+                    elif getChr == b'M':
+                        new_state = state.next_state(RIGHT)
+                    elif getChr == b'H':
+                        new_state = state.next_state(UP)
+                    elif getChr == b'P':
+                        new_state = state.next_state(DOWN)
+                    elif getChr == b'\x1b':
+                        break
+                    state = new_state if new_state is not None else state
+                    if getChr in [b'K', b'M', b'H', b'P']:
+                        GraphicController.reDraw(state)
 
     else:
-        import msvcrt
-        while True:
-            if msvcrt.kbhit():
-                getChr = msvcrt.getch()
-                if getChr == b'K':
-                    maze.move(Move.LEFT)
-                elif getChr == b'M':
-                    maze.move(Move.RIGHT)
-                elif getChr == b'H':
-                    maze.move(Move.UP)
-                elif getChr == b'P':
-                    maze.move(Move.DOWN)
-                elif getChr == b'\x1b':
-                    break
-                if getChr in [b'K', b'M', b'H', b'P']:
-                    GraphicController.reDraw(maze)
+        # RUN AI CODE
+        tree = Tree(Node(initial_state))
+        result = tree.search()
+        if result:
+            t2 = time.time()
+            GraphicController.reDraw(result.state)
+            time.sleep(2)
+            moves = []
+            node_travel = result
+            while True:
+                moves.append(node_travel.state)
+                node_travel = node_travel.parent
+                if not node_travel: break
+            moves.reverse() 
+            for move in moves:
+                GraphicController.reDraw(move)
+                time.sleep(0.1)
+            print("time-taken: ", t2 - t1, " seconds")
+        else:
+            print("Couldn't find solution")
 
 if __name__ == "__main__":
     main()
