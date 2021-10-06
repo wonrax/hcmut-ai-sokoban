@@ -86,6 +86,8 @@ class State:
         }
         obstacles = self.walls
         for checking_box in self.boxes:
+            if checking_box in self.shelves:
+                continue
             # Corner check
             for direction in [LEFT, RIGHT, UP, DOWN]:
                 new_orthogonal_location = direction.move(checking_box)
@@ -98,8 +100,10 @@ class State:
             # Boundary check
             def check_boundary(dir: Move):
                 if dir.move(checking_box) in self.walls:
-                    if dir is UP:
-                        pass
+                    if checking_box[0] in map(lambda x: x[0], self.shelves):
+                        return False
+                    if checking_box[1] in map(lambda x: x[1], self.shelves):
+                        return False
                     bound_1 = None
                     bound_2 = None
                     current_location = checking_box
@@ -125,25 +129,6 @@ class State:
                     else: return True
             for dir in [LEFT, RIGHT, UP, DOWN]:
                 if check_boundary(dir): return True
-            # if RIGHT.move(checking_box) in self.walls:
-            #     current_location = checking_box
-            #     upper_bound_y = None
-            #     lower_bound_y = None
-            #     while True:
-            #         current_location = UP.move(current_location)
-            #         if current_location in self.walls:
-            #             upper_bound_y = current_location[1]
-            #             break
-            #     while True:
-            #         current_location = DOWN.move(current_location)
-            #         if current_location in self.walls:
-            #             lower_bound_y = current_location[1]
-            #             break
-            #     left_wall_x = RIGHT.move(checking_box)[0]
-            #     for y in range(upper_bound_y + 1, lower_bound_y):
-            #         if (left_wall_x, y) not in self.walls:
-            #             break
-            #     else: return True
 
         return False
 
@@ -161,10 +146,12 @@ class Node:
         return self.state == o.state
     def is_goal_node(self):
         return self.state.is_goal_state()
+    def __hash__(self) -> int:
+        return self.state.hash
 
 class Tree:
     def __init__(self, root: Node) -> None:
-        self.visited = [root]
+        self.visited = { root }
         self.current_node = root
         self.pending_nodes: list[Node] = []
         self.pop = self.pending_nodes.pop
@@ -172,7 +159,7 @@ class Tree:
         
     def search(self):
         while True:
-            # GraphicController.reDraw(self.current_node.state)
+            GraphicController.reDraw(self.current_node.state)
             if self.current_node.is_goal_node():
                 return self.current_node
             if self.current_node.state.contain_deadend():
@@ -188,7 +175,7 @@ class Tree:
             
             if not self.pending_nodes: break
             self.current_node = self.pop()
-            self.visited.append(self.current_node)
+            self.visited.add(self.current_node)
         return False
 
 class Maze:
@@ -308,7 +295,7 @@ class AIController:
 
 def main():
     t1 = time.time()
-    maze = Maze("src/maps/micro1.txt")
+    maze = Maze("src/maps/micro3.txt")
     initial_state = maze.build_state()
     GraphicController.reDraw(initial_state)
 
