@@ -150,16 +150,18 @@ class Node:
         return self.state.hash
 
 class Tree:
-    def __init__(self, root: Node) -> None:
+    def __init__(self, root: Node, print_state = True) -> None:
         self.visited = { root }
         self.current_node = root
         self.pending_nodes: list[Node] = []
         self.pop = self.pending_nodes.pop
         self.insert = self.pending_nodes.append
+        self.print_state = print_state
         
     def search(self):
         while True:
-            GraphicController.reDraw(self.current_node.state)
+            if self.print_state:
+                GraphicController.reDraw(self.current_node.state)
             if self.current_node.is_goal_node():
                 return self.current_node
             if self.current_node.state.contain_deadend():
@@ -231,7 +233,7 @@ class GraphicController:
     SYMBOLS_MAPPINGS = {Maze.MAZE_HERO: "☻", Maze.MAZE_BOX: "U", Maze.MAZE_WALL: "█", Maze.MAZE_SPACE: " ", Maze.MAZE_SHELF: "*", Maze.MAZE_SHELF_BOX: "O"}
     drawnRows = 0
     
-    def print(string: str):
+    def print(string):
         print(string)
         GraphicController.drawnRows += 1
 
@@ -279,10 +281,24 @@ class GraphicController:
         
         print(print_string)
         GraphicController.drawnRows += 1
+
+        print(
+            "Hero:",
+            GraphicController.SYMBOLS_MAPPINGS[Maze.MAZE_HERO],
+            "Wall:",
+            GraphicController.SYMBOLS_MAPPINGS[Maze.MAZE_WALL],
+            "Box:",
+            GraphicController.SYMBOLS_MAPPINGS[Maze.MAZE_BOX],
+            "Shelf:",
+            GraphicController.SYMBOLS_MAPPINGS[Maze.MAZE_SHELF],
+            "Filled shelf:",
+            GraphicController.SYMBOLS_MAPPINGS[Maze.MAZE_SHELF_BOX],
+            )
+        GraphicController.drawnRows += 1
         
         sys.stdout.write('\033[2K\033[1G')
         if state.is_goal_state():
-            print("Won the game!")
+            print("You won the game!")
         else: print("")
         GraphicController.drawnRows += 1
     
@@ -294,54 +310,93 @@ class AIController:
             tree.current_node.state.generate_possible_next_states()
 
 def main():
-    t1 = time.time()
-    maze = Maze("src/maps/micro3.txt")
-    initial_state = maze.build_state()
-    GraphicController.reDraw(initial_state)
+    os.system('cls||clear')
+    maze = None
+    maze_file_path = "src/maps/micro1.txt"
+    try:
+        maze_file_path = "src/maps/" + sys.argv[sys.argv.index("-p") + 1]
+        maze = Maze(maze_file_path)
+    except ValueError:
+        maze = Maze(maze_file_path)
+    except OSError:
+        print("Map file not found")
+        return
 
-    if len(sys.argv) > 1:
-        if sys.argv[1] == "-i":
-            import msvcrt
-            state = initial_state
-            while True:
-                if msvcrt.kbhit():
-                    getChr = msvcrt.getch()
-                    new_state = None
-                    if getChr == b'K':
-                        new_state = state.next_state(LEFT)
-                    elif getChr == b'M':
-                        new_state = state.next_state(RIGHT)
-                    elif getChr == b'H':
-                        new_state = state.next_state(UP)
-                    elif getChr == b'P':
-                        new_state = state.next_state(DOWN)
-                    elif getChr == b'\x1b':
-                        break
-                    state = new_state if new_state is not None else state
-                    if getChr in [b'K', b'M', b'H', b'P']:
-                        GraphicController.reDraw(state)
+    if maze:
+        initial_state = maze.build_state()
+    else:
+        print("Something went wrong")
+        return
+
+    if "-i" in sys.argv:
+        GraphicController.reDraw(initial_state)
+        import msvcrt
+        state = initial_state
+        while True:
+            if msvcrt.kbhit():
+                getChr = msvcrt.getch()
+                new_state = None
+                if getChr == b'K':
+                    new_state = state.next_state(LEFT)
+                elif getChr == b'M':
+                    new_state = state.next_state(RIGHT)
+                elif getChr == b'H':
+                    new_state = state.next_state(UP)
+                elif getChr == b'P':
+                    new_state = state.next_state(DOWN)
+                elif getChr == b'\x1b':
+                    break
+                state = new_state if new_state is not None else state
+                if getChr in [b'K', b'M', b'H', b'P']:
+                    GraphicController.reDraw(state)
 
     else:
-        # RUN AI CODE
-        tree = Tree(Node(initial_state))
+        ### Default Options ###
+        # Print the state after each node visit
+        print_game_state = True
+        # Replay the solution after the search completes
+        replay = True
+        # Number of states that are printed per second when replay the solution
+        frame_rate = 30
+
+        if "--no-visual" in sys.argv:
+            print_game_state = False
+        if "--no-replay" in sys.argv:
+            replay = False
+        try:
+            frame_rate = int(sys.argv[sys.argv.index("-f") + 1])
+        except ValueError:
+            pass
+
+        t1 = time.time()
+        tree = Tree(Node(initial_state), print_game_state)
+        if not print_game_state:
+            print("Searching...\n")
+        GraphicController.reDraw(initial_state)
         result = tree.search()
         if result:
-            t2 = time.time()
+            time_taken = time.time() - t1
             GraphicController.reDraw(result.state)
-            time.sleep(2)
-            moves = []
-            node_travel = result
-            while True:
-                moves.append(node_travel.state)
-                node_travel = node_travel.parent
-                if not node_travel: break
-            moves.reverse() 
-            for move in moves:
-                GraphicController.reDraw(move)
-                time.sleep(0.1)
-            print("time-taken: ", t2 - t1, " seconds")
+            GraphicController.print("time-taken: " + str(int(time_taken / 60)) + "m " + str(time_taken % 60) + "s")
+            GraphicController.print("Steps to solution: " + str(result.height + 1))
+            GraphicController.print("Total node visited: " + str(len(tree.visited)))
+            if replay:
+                GraphicController.print("Solution found, press enter to replay the solution...")
+                input()
+                os.system('cls||clear')
+                moves = []
+                node_travel = result
+                while True:
+                    moves.append(node_travel.state)
+                    node_travel = node_travel.parent
+                    if not node_travel: break
+                moves.reverse() 
+                for index, move in enumerate(moves):
+                    GraphicController.reDraw(move)
+                    GraphicController.print("Steps: " + str(index + 1) + "/" + str(result.height + 1))
+                    time.sleep(1/frame_rate)
         else:
-            print("Couldn't find solution")
+            GraphicController.print("Couldn't find solution")
 
 if __name__ == "__main__":
     main()
