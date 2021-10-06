@@ -186,12 +186,19 @@ class Tree:
         self.pop = self.pending_nodes.pop
         self.insert = self.pending_nodes.append
         self.print_state = print_state
+        self.time_init = time.time()
 
     def search(self):
         while True:
 
             if self.print_state:
                 GraphicController.reDraw(self.current_node.state)
+            sys.stdout.write("Total nodes visited: " + str(len(self.visited)) + " | ")
+            sys.stdout.write(
+                "Node visits per second: "
+                + str(len(self.visited) / (time.time() - self.time_init + 0.01))
+                + "\r"
+            )
 
             if self.current_node.is_goal_node():
                 return self.current_node
@@ -393,6 +400,7 @@ def main():
         import msvcrt
 
         state = initial_state
+        steps = 0
         while True:
             if msvcrt.kbhit():
                 getChr = msvcrt.getch()
@@ -407,9 +415,12 @@ def main():
                     new_state = state.next_state(DOWN)
                 elif getChr == b"\x1b":
                     break
-                state = new_state if new_state is not None else state
+                if new_state is not None:
+                    state = new_state
+                    steps += 1
                 if getChr in [b"K", b"M", b"H", b"P"]:
                     GraphicController.reDraw(state)
+                    GraphicController.print("Steps: " + str(steps))
 
     else:
         ### Default Options ###
@@ -437,6 +448,7 @@ def main():
         result = tree.search()
         if result:
             time_taken = time.time() - t1
+            os.system("cls||clear")
             GraphicController.reDraw(result.state)
             GraphicController.print(
                 "time-taken: "
@@ -464,7 +476,11 @@ def main():
                 for index, move in enumerate(moves):
                     GraphicController.reDraw(move)
                     GraphicController.print(
-                        "Steps: " + str(index + 1) + "/" + str(result.height + 1)
+                        "Replaying solution: "
+                        + str(index + 1)
+                        + "/"
+                        + str(result.height + 1)
+                        + " steps"
                     )
                     time.sleep(1 / frame_rate)
         else:
