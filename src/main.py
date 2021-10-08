@@ -131,7 +131,7 @@ class Tree:
         self.time_limit = None
         self.best_solution: Node = None
 
-    def search(self, seek_optimal=False, time_limit=None):
+    def bfs(self, seek_optimal=False, time_limit=None):
         while True:
 
             # TODO Make this a seperate thread
@@ -508,7 +508,7 @@ def main():
         if not print_game_state:
             print("Searching...\n")
         GraphicController.reDraw(initial_state)
-        result = tree.search(seek_optimal, time_limit)
+        result = tree.bfs(seek_optimal, time_limit)
         if result:
             time_taken = time.time() - t1
             os.system("cls||clear")
