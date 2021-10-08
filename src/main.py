@@ -88,7 +88,7 @@ class State:
 
     def is_goal_state(self):
         return self.boxes == self.shelves
-    
+
     def check_dead_end(self, deadends) -> bool:
         for box in self.boxes:
             if box in deadends:
@@ -115,6 +115,7 @@ class Node:
     def __hash__(self) -> int:
         return self.state.hash
 
+
 class Tree:
     def __init__(self, root: Node, deadends=set(), print_state=True) -> None:
         self.visited = {root}
@@ -125,16 +126,15 @@ class Tree:
         self.insert = self.pending_nodes.append
         self.print_state = print_state
         self.time_init = time.time()
-        
+
         self.total_visited = 0
         self.time_limit = None
         self.best_solution: Node = None
 
-
     def search(self, seek_optimal=False, time_limit=None):
         while True:
 
-            #TODO Make this a seperate thread
+            # TODO Make this a seperate thread
             if self.print_state:
                 GraphicController.reDraw(self.current_node.state)
             sys.stdout.write("Total nodes visited: " + str(self.total_visited) + " | ")
@@ -143,13 +143,16 @@ class Tree:
                 + str(len(self.visited) / (time.time() - self.time_init + 0.01))
                 + "\r"
             )
-            
+
             if time_limit and time.time() - self.time_init > time_limit:
                 return self.best_solution
 
             if self.current_node.is_goal_node():
                 # Update with the best solution so far
-                if not self.best_solution or self.current_node.height < self.best_solution.height:
+                if (
+                    not self.best_solution
+                    or self.current_node.height < self.best_solution.height
+                ):
                     self.best_solution = self.current_node
 
                 if seek_optimal:
@@ -244,9 +247,8 @@ class SokobanMap:
             y = wall[1]
             max_wall_x = wall_location if wall_location > max_wall_x else max_wall_x
             max_wall_y = y if y > max_wall_y else max_wall_y
-        
-        return max_wall_x, max_wall_y
 
+        return max_wall_x, max_wall_y
 
     def search_dead_ends(self):
         CHECK_MAPPINGS = {
@@ -255,7 +257,7 @@ class SokobanMap:
             UP: (LEFT, RIGHT),
             DOWN: (LEFT, RIGHT),
         }
-        
+
         wall_bound_x, wall_bound_y = self.get_map_bound()
         check_spaces = set()
         for i in range(wall_bound_x + 1):
@@ -329,6 +331,7 @@ class SokobanMap:
                 deadends.add(check_space)
 
         return deadends
+
 
 class GraphicController:
     SYMBOLS_MAPPINGS = {
