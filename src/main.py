@@ -88,73 +88,11 @@ class State:
 
     def is_goal_state(self):
         return self.boxes == self.shelves
-
-    def contain_deadend(self):
-        CHECK_MAPPINGS = {
-            LEFT: (UP, DOWN),
-            RIGHT: (UP, DOWN),
-            UP: (LEFT, RIGHT),
-            DOWN: (LEFT, RIGHT),
-        }
-        obstacles = self.walls
-        for checking_box in self.boxes:
-            if checking_box in self.shelves:
-                continue
-
-            # Corner check
-            for direction in [LEFT, RIGHT, UP, DOWN]:
-
-                new_orthogonal_location = direction.move(checking_box)
-
-                if not new_orthogonal_location in obstacles:
-                    continue
-                else:
-                    for sub_direction in CHECK_MAPPINGS[direction]:
-                        if sub_direction.move(checking_box) in obstacles:
-                            return True
-
-            # Boundary check
-            def check_boundary(dir: Move):
-                if dir.move(checking_box) in self.walls:
-
-                    if checking_box[0] in map(lambda x: x[0], self.shelves):
-                        return False
-                    if checking_box[1] in map(lambda x: x[1], self.shelves):
-                        return False
-
-                    bound_1 = None
-                    bound_2 = None
-                    current_location = checking_box
-
-                    while True:
-                        current_location = CHECK_MAPPINGS[dir][0].move(current_location)
-                        if current_location in self.walls:
-                            bound_1 = current_location[1 if dir in [LEFT, RIGHT] else 0]
-                            break
-
-                    current_location = checking_box
-                    while True:
-                        current_location = CHECK_MAPPINGS[dir][1].move(current_location)
-                        if current_location in self.walls:
-                            bound_2 = current_location[1 if dir in [LEFT, RIGHT] else 0]
-                            break
-
-                    side_wall = dir.move(checking_box)[0 if dir in [LEFT, RIGHT] else 1]
-
-                    for i in range(bound_1 + 1, bound_2):
-                        if dir in [LEFT, RIGHT]:
-                            if (side_wall, i) not in self.walls:
-                                break
-                        else:
-                            if (i, side_wall) not in self.walls:
-                                break
-                    else:
-                        return True
-
-            for dir in [LEFT, RIGHT, UP, DOWN]:
-                if check_boundary(dir):
-                    return True
-
+    
+    def check_dead_end(self, deadends) -> bool:
+        for box in self.boxes:
+            if box in deadends:
+                return True
         return False
 
 
@@ -177,12 +115,10 @@ class Node:
     def __hash__(self) -> int:
         return self.state.hash
 
-
-import random
 class Tree:
-    def __init__(self, root: Node, print_state=True) -> None:
+    def __init__(self, root: Node, deadends=set(), print_state=True) -> None:
         self.visited = {root}
-        self.deadends: set[Node] = set()
+        self.deadends: set[Node] = deadends
         self.current_node = root
         self.pending_nodes: list[Node] = []
         self.pop = self.pending_nodes.pop
@@ -222,8 +158,7 @@ class Tree:
 
                 return self.current_node
 
-            if self.current_node.state.contain_deadend():
-                # self.deadends.add(self.current_node)
+            if self.current_node.state.check_dead_end(self.deadends):
                 if not self.pending_nodes:
                     break
                 self.current_node = self.pending_nodes.pop()
@@ -231,7 +166,6 @@ class Tree:
 
             next_states = self.current_node.state.generate_possible_next_states()
 
-            random.shuffle(next_states)
             for state in next_states:
                 new_node = Node(state, self.current_node)
                 if new_node in self.visited:
@@ -300,6 +234,101 @@ class SokobanMap:
     def build_state(self) -> State:
         return State(self.hero, self.boxes, self.walls, self.shelves)
 
+    def get_map_bound(self) -> tuple[int]:
+        # Find the maze bound
+        max_wall_x = 0
+        max_wall_y = 0
+
+        for wall in self.walls:
+            wall_location = wall[0]
+            y = wall[1]
+            max_wall_x = wall_location if wall_location > max_wall_x else max_wall_x
+            max_wall_y = y if y > max_wall_y else max_wall_y
+        
+        return max_wall_x, max_wall_y
+
+
+    def search_dead_ends(self):
+        CHECK_MAPPINGS = {
+            LEFT: (UP, DOWN),
+            RIGHT: (UP, DOWN),
+            UP: (LEFT, RIGHT),
+            DOWN: (LEFT, RIGHT),
+        }
+        
+        wall_bound_x, wall_bound_y = self.get_map_bound()
+        check_spaces = set()
+        for i in range(wall_bound_x + 1):
+            for j in range(wall_bound_y + 1):
+                if (i, j) not in self.walls:
+                    check_spaces.add((i, j))
+
+        def check_deadend(check_space):
+            if check_space in self.shelves:
+                return False
+
+            # Corner check
+            for direction in [LEFT, RIGHT, UP, DOWN]:
+
+                new_orthogonal_location = direction.move(check_space)
+
+                if not new_orthogonal_location in self.walls:
+                    continue
+                else:
+                    for sub_direction in CHECK_MAPPINGS[direction]:
+                        if sub_direction.move(check_space) in self.walls:
+                            return True
+
+            # Boundary check
+            def check_boundary(dir: Move):
+                if dir.move(check_space) in self.walls:
+
+                    if check_space[0] in map(lambda x: x[0], self.shelves):
+                        return False
+                    if check_space[1] in map(lambda x: x[1], self.shelves):
+                        return False
+
+                    bound_1 = None
+                    bound_2 = None
+                    current_location = check_space
+
+                    while True:
+                        current_location = CHECK_MAPPINGS[dir][0].move(current_location)
+                        if current_location in self.walls:
+                            bound_1 = current_location[1 if dir in [LEFT, RIGHT] else 0]
+                            break
+
+                    current_location = check_space
+                    while True:
+                        current_location = CHECK_MAPPINGS[dir][1].move(current_location)
+                        if current_location in self.walls:
+                            bound_2 = current_location[1 if dir in [LEFT, RIGHT] else 0]
+                            break
+
+                    side_wall = dir.move(check_space)[0 if dir in [LEFT, RIGHT] else 1]
+
+                    for i in range(bound_1 + 1, bound_2):
+                        if dir in [LEFT, RIGHT]:
+                            if (side_wall, i) not in self.walls:
+                                break
+                        else:
+                            if (i, side_wall) not in self.walls:
+                                break
+                    else:
+                        return True
+
+            for dir in [LEFT, RIGHT, UP, DOWN]:
+                if check_boundary(dir):
+                    return True
+
+            return False
+
+        deadends = set()
+        for check_space in check_spaces:
+            if check_deadend(check_space):
+                deadends.add(check_space)
+
+        return deadends
 
 class GraphicController:
     SYMBOLS_MAPPINGS = {
@@ -402,19 +431,19 @@ class GraphicController:
 
 def main():
     os.system("cls||clear")
-    maze = None
+    map = None
     maze_file_path = "src/maps/micro1.txt"
     try:
         maze_file_path = "src/maps/" + sys.argv[sys.argv.index("-p") + 1]
-        maze = SokobanMap(maze_file_path)
+        map = SokobanMap(maze_file_path)
     except ValueError:
-        maze = SokobanMap(maze_file_path)
+        map = SokobanMap(maze_file_path)
     except OSError:
         print("Map file not found")
         return
 
-    if maze:
-        initial_state = maze.build_state()
+    if map:
+        initial_state = map.build_state()
     else:
         print("Something went wrong")
         return
@@ -463,7 +492,7 @@ def main():
             print_game_state = False
         if "--no-replay" in sys.argv:
             replay = False
-        if "--seek-optimal" in sys.argv:
+        if "--optimal" in sys.argv:
             seek_optimal = True
         try:
             frame_rate = int(sys.argv[sys.argv.index("-f") + 1])
@@ -472,7 +501,7 @@ def main():
             pass
 
         t1 = time.time()
-        tree = Tree(Node(initial_state), print_game_state)
+        tree = Tree(Node(initial_state), map.search_dead_ends(), print_game_state)
         if not print_game_state:
             print("Searching...\n")
         GraphicController.reDraw(initial_state)
