@@ -178,32 +178,52 @@ class Node:
         return self.state.hash
 
 
+import random
 class Tree:
     def __init__(self, root: Node, print_state=True) -> None:
         self.visited = {root}
+        self.deadends: set[Node] = set()
         self.current_node = root
         self.pending_nodes: list[Node] = []
         self.pop = self.pending_nodes.pop
         self.insert = self.pending_nodes.append
         self.print_state = print_state
         self.time_init = time.time()
+        
+        self.total_visited = 0
+        self.time_limit = None
+        self.best_solution: Node = None
 
-    def search(self):
+
+    def search(self, seek_optimal=False, time_limit=None):
         while True:
 
+            #TODO Make this a seperate thread
             if self.print_state:
                 GraphicController.reDraw(self.current_node.state)
-            sys.stdout.write("Total nodes visited: " + str(len(self.visited)) + " | ")
+            sys.stdout.write("Total nodes visited: " + str(self.total_visited) + " | ")
             sys.stdout.write(
                 "Node visits per second: "
                 + str(len(self.visited) / (time.time() - self.time_init + 0.01))
                 + "\r"
             )
+            
+            if time_limit and time.time() - self.time_init > time_limit:
+                return self.best_solution
 
             if self.current_node.is_goal_node():
+                # Update with the best solution so far
+                if not self.best_solution or self.current_node.height < self.best_solution.height:
+                    self.best_solution = self.current_node
+
+                if seek_optimal:
+                    self.current_node = self.pop()
+                    continue
+
                 return self.current_node
 
             if self.current_node.state.contain_deadend():
+                # self.deadends.add(self.current_node)
                 if not self.pending_nodes:
                     break
                 self.current_node = self.pending_nodes.pop()
@@ -211,6 +231,7 @@ class Tree:
 
             next_states = self.current_node.state.generate_possible_next_states()
 
+            random.shuffle(next_states)
             for state in next_states:
                 new_node = Node(state, self.current_node)
                 if new_node in self.visited:
@@ -222,18 +243,20 @@ class Tree:
 
             self.current_node = self.pop()
             self.visited.add(self.current_node)
+            self.total_visited += 1
 
-        return False
+        return self.best_solution
 
 
-class Maze:
-    # Map symbol constants used in parsing maze from file
-    MAZE_HERO = "X"
-    MAZE_SPACE = " "
-    MAZE_WALL = "#"
-    MAZE_BOX = "U"
-    MAZE_SHELF = "*"
-    MAZE_SHELF_BOX = "O"  # the shelf with box
+class SokobanMap:
+
+    # Characters used in map building and parsing
+    HERO_CHAR = "X"
+    SPACE_CHAR = " "
+    WALL_CHAR = "#"
+    BOX_CHAR = "U"
+    SHELF_CHAR = "*"
+    SHELF_BOX_CHAR = "O"  # the shelf which is filled with a box
 
     def __init__(self, mapFilePath) -> None:
         # Hero location
@@ -257,19 +280,20 @@ class Maze:
                     continue
                 str_maze.append(line)
 
+        # Parse map to game state
         for i in range(len(str_maze)):
             row = str_maze[i]
             for x in range(len(row)):
                 c = row[x]
-                if c == Maze.MAZE_WALL:
+                if c == SokobanMap.WALL_CHAR:
                     self.walls.add((x, i))
-                elif c == Maze.MAZE_HERO:
+                elif c == SokobanMap.HERO_CHAR:
                     self.hero = (x, i)
-                elif c == Maze.MAZE_SHELF:
+                elif c == SokobanMap.SHELF_CHAR:
                     self.shelves.add((x, i))
-                elif c == Maze.MAZE_BOX:
+                elif c == SokobanMap.BOX_CHAR:
                     self.boxes.add((x, i))
-                elif c == Maze.MAZE_SHELF_BOX:
+                elif c == SokobanMap.SHELF_BOX_CHAR:
                     self.boxes.add((x, i))
                     self.shelves.add((x, i))
 
@@ -279,12 +303,12 @@ class Maze:
 
 class GraphicController:
     SYMBOLS_MAPPINGS = {
-        Maze.MAZE_HERO: "☻",
-        Maze.MAZE_BOX: "U",
-        Maze.MAZE_WALL: "█",
-        Maze.MAZE_SPACE: " ",
-        Maze.MAZE_SHELF: "*",
-        Maze.MAZE_SHELF_BOX: "O",
+        SokobanMap.HERO_CHAR: "☻",
+        SokobanMap.BOX_CHAR: "U",
+        SokobanMap.WALL_CHAR: "█",
+        SokobanMap.SPACE_CHAR: " ",
+        SokobanMap.SHELF_CHAR: "*",
+        SokobanMap.SHELF_BOX_CHAR: "O",
     }
     drawnRows = 0
 
@@ -316,7 +340,7 @@ class GraphicController:
 
         maze = [
             [
-                GraphicController.SYMBOLS_MAPPINGS[Maze.MAZE_SPACE]
+                GraphicController.SYMBOLS_MAPPINGS[SokobanMap.SPACE_CHAR]
                 for x in range(max_wall_x + 1)
             ]
             for y in range(max_wall_y + 1)
@@ -324,24 +348,24 @@ class GraphicController:
         for wall_location in state.walls:
             maze[wall_location[1]][
                 wall_location[0]
-            ] = GraphicController.SYMBOLS_MAPPINGS[Maze.MAZE_WALL]
+            ] = GraphicController.SYMBOLS_MAPPINGS[SokobanMap.WALL_CHAR]
         for shelf_location in state.shelves:
             if shelf_location in state.boxes:
                 maze[shelf_location[1]][
                     shelf_location[0]
-                ] = GraphicController.SYMBOLS_MAPPINGS[Maze.MAZE_SHELF_BOX]
+                ] = GraphicController.SYMBOLS_MAPPINGS[SokobanMap.SHELF_BOX_CHAR]
             else:
                 maze[shelf_location[1]][
                     shelf_location[0]
-                ] = GraphicController.SYMBOLS_MAPPINGS[Maze.MAZE_SHELF]
+                ] = GraphicController.SYMBOLS_MAPPINGS[SokobanMap.SHELF_CHAR]
         for box_location in state.boxes:
             if not box_location in state.shelves:
                 maze[box_location[1]][
                     box_location[0]
-                ] = GraphicController.SYMBOLS_MAPPINGS[Maze.MAZE_BOX]
+                ] = GraphicController.SYMBOLS_MAPPINGS[SokobanMap.BOX_CHAR]
 
         maze[state.hero[1]][state.hero[0]] = GraphicController.SYMBOLS_MAPPINGS[
-            Maze.MAZE_HERO
+            SokobanMap.HERO_CHAR
         ]
 
         print_string = ""
@@ -356,15 +380,15 @@ class GraphicController:
 
         print(
             "Hero:",
-            GraphicController.SYMBOLS_MAPPINGS[Maze.MAZE_HERO],
+            GraphicController.SYMBOLS_MAPPINGS[SokobanMap.HERO_CHAR],
             "Wall:",
-            GraphicController.SYMBOLS_MAPPINGS[Maze.MAZE_WALL],
+            GraphicController.SYMBOLS_MAPPINGS[SokobanMap.WALL_CHAR],
             "Box:",
-            GraphicController.SYMBOLS_MAPPINGS[Maze.MAZE_BOX],
+            GraphicController.SYMBOLS_MAPPINGS[SokobanMap.BOX_CHAR],
             "Shelf:",
-            GraphicController.SYMBOLS_MAPPINGS[Maze.MAZE_SHELF],
+            GraphicController.SYMBOLS_MAPPINGS[SokobanMap.SHELF_CHAR],
             "Filled shelf:",
-            GraphicController.SYMBOLS_MAPPINGS[Maze.MAZE_SHELF_BOX],
+            GraphicController.SYMBOLS_MAPPINGS[SokobanMap.SHELF_BOX_CHAR],
         )
         GraphicController.drawnRows += 1
 
@@ -382,9 +406,9 @@ def main():
     maze_file_path = "src/maps/micro1.txt"
     try:
         maze_file_path = "src/maps/" + sys.argv[sys.argv.index("-p") + 1]
-        maze = Maze(maze_file_path)
+        maze = SokobanMap(maze_file_path)
     except ValueError:
-        maze = Maze(maze_file_path)
+        maze = SokobanMap(maze_file_path)
     except OSError:
         print("Map file not found")
         return
@@ -430,13 +454,20 @@ def main():
         replay = True
         # Number of states that are printed per second when replay the solution
         frame_rate = 30
+        # Keep finding optimal solution
+        seek_optimal = False
+        # Time limit when seek_optimal in seconds
+        time_limit = None
 
         if "--no-visual" in sys.argv:
             print_game_state = False
         if "--no-replay" in sys.argv:
             replay = False
+        if "--seek-optimal" in sys.argv:
+            seek_optimal = True
         try:
             frame_rate = int(sys.argv[sys.argv.index("-f") + 1])
+            time_limit = int(sys.argv[sys.argv.index("-t") + 1])
         except ValueError:
             pass
 
@@ -445,7 +476,7 @@ def main():
         if not print_game_state:
             print("Searching...\n")
         GraphicController.reDraw(initial_state)
-        result = tree.search()
+        result = tree.search(seek_optimal, time_limit)
         if result:
             time_taken = time.time() - t1
             os.system("cls||clear")
