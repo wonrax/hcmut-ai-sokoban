@@ -11,6 +11,7 @@
 			"program": "${workspaceFolder}/src/main.py",
 			"console": "integratedTerminal",
 			"cwd": "${workspaceFolder}",
+			"args": ["--no-visual", "-p", "micro3.txt"]
 		},
 		{
 			"name": "Run interactive",

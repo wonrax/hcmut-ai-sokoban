@@ -299,6 +299,13 @@ class SokobanMap:
                         if current_location in self.walls:
                             bound_1 = current_location[1 if dir in [LEFT, RIGHT] else 0]
                             break
+                        if (
+                            current_location[0] > wall_bound_x
+                            or current_location[1] > wall_bound_y
+                            or current_location[0] < 0
+                            or current_location[1] < 0
+                        ):
+                            break
 
                     current_location = check_space
                     while True:
@@ -306,18 +313,28 @@ class SokobanMap:
                         if current_location in self.walls:
                             bound_2 = current_location[1 if dir in [LEFT, RIGHT] else 0]
                             break
+                        if (
+                            current_location[0] > wall_bound_x
+                            or current_location[1] > wall_bound_y
+                            or current_location[0] < 0
+                            or current_location[1] < 0
+                        ):
+                            break
 
                     side_wall = dir.move(check_space)[0 if dir in [LEFT, RIGHT] else 1]
 
-                    for i in range(bound_1 + 1, bound_2):
-                        if dir in [LEFT, RIGHT]:
-                            if (side_wall, i) not in self.walls:
-                                break
+                    if bound_1 and bound_2:
+                        for i in range(bound_1 + 1, bound_2):
+                            if dir in [LEFT, RIGHT]:
+                                if (side_wall, i) not in self.walls:
+                                    break
+                            else:
+                                if (i, side_wall) not in self.walls:
+                                    break
                         else:
-                            if (i, side_wall) not in self.walls:
-                                break
+                            return True
                     else:
-                        return True
+                        return False
 
             for dir in [LEFT, RIGHT, UP, DOWN]:
                 if check_boundary(dir):
@@ -499,6 +516,9 @@ def main():
             seek_optimal = True
         try:
             frame_rate = int(sys.argv[sys.argv.index("-f") + 1])
+        except ValueError:
+            pass
+        try:
             time_limit = int(sys.argv[sys.argv.index("-t") + 1])
         except ValueError:
             pass
