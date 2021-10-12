@@ -118,12 +118,12 @@ class Node:
 
 class Tree:
     def __init__(self, root: Node, deadends=set(), print_state=True) -> None:
-        self.visited = {root}
+        self.open: list[Node] = []
+        self.closed = {root}
         self.deadends: set[Node] = deadends
         self.current_node = root
-        self.pending_nodes: list[Node] = []
-        self.pop = self.pending_nodes.pop
-        self.insert = self.pending_nodes.append
+        self.pop = self.open.pop
+        self.insert = self.open.append
         self.print_state = print_state
         self.time_init = time.time()
 
@@ -131,7 +131,7 @@ class Tree:
         self.time_limit = None
         self.best_solution: Node = None
 
-    def bfs(self, seek_optimal=False, time_limit=None):
+    def dfs(self, seek_optimal=False, time_limit=None):
         while True:
 
             # TODO Make this a seperate thread
@@ -140,7 +140,7 @@ class Tree:
             sys.stdout.write("Total nodes visited: " + str(self.total_visited) + " | ")
             sys.stdout.write(
                 "Node visits per second: "
-                + str(len(self.visited) / (time.time() - self.time_init + 0.01))
+                + str(len(self.closed) / (time.time() - self.time_init + 0.01))
                 + "\r"
             )
 
@@ -162,24 +162,24 @@ class Tree:
                 return self.current_node
 
             if self.current_node.state.check_dead_end(self.deadends):
-                if not self.pending_nodes:
+                if not self.open:
                     break
-                self.current_node = self.pending_nodes.pop()
+                self.current_node = self.open.pop()
                 continue
 
             next_states = self.current_node.state.generate_possible_next_states()
 
             for state in next_states:
                 new_node = Node(state, self.current_node)
-                if new_node in self.visited:
+                if new_node in self.closed:
                     continue
                 self.insert(new_node)
 
-            if not self.pending_nodes:
+            if not self.open:
                 break
 
             self.current_node = self.pop()
-            self.visited.add(self.current_node)
+            self.closed.add(self.current_node)
             self.total_visited += 1
 
         return self.best_solution
@@ -528,7 +528,7 @@ def main():
         if not print_game_state:
             print("Searching...\n")
         GraphicController.reDraw(initial_state)
-        result = tree.bfs(seek_optimal, time_limit)
+        result = tree.dfs(seek_optimal, time_limit)
         if result:
             time_taken = time.time() - t1
             os.system("cls||clear")
@@ -541,7 +541,7 @@ def main():
                 + "s"
             )
             GraphicController.print("Steps to solution: " + str(result.height + 1))
-            GraphicController.print("Total node visited: " + str(len(tree.visited)))
+            GraphicController.print("Total node visited: " + str(len(tree.closed)))
             if replay:
                 GraphicController.print(
                     "Solution found, press enter to replay the solution..."
