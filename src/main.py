@@ -102,15 +102,15 @@ class Node:
     def __init__(self, state: State, parent=None, h_function=None) -> None:
         self.state = state
 
-        '''
+        """
         g(n) = cost of the cheapest path from the initial node to this node.
         Also equals to the height of the current node.
-        '''
+        """
         self.g = 0
-        
-        '''
+
+        """
         h(n) = cost of the cheapest path from this node to the goal node.
-        '''
+        """
         self.h = h_function(state) if callable(h_function) else None
 
         if parent and isinstance(parent, Node):
@@ -121,10 +121,12 @@ class Node:
         if not isinstance(o, Node):
             return False
         return self.state == o.state
-    
+
     def __lt__(self, o: object) -> bool:
         if not isinstance(o, Node):
-            raise Exception("Wrong comparing type: " + str(type(self)) + " and " + str(type(o)))
+            raise Exception(
+                "Wrong comparing type: " + str(type(self)) + " and " + str(type(o))
+            )
         if self.h is None:
             raise Exception("H value is None")
         if self.g + self.h == o.g + o.h:
@@ -137,53 +139,64 @@ class Node:
     def __hash__(self) -> int:
         return self.state.hash
 
+
 DFS = 0
 A_STAR = 1
-class Tree:
-    def __init__(self, root: Node, deadends=set(), print_state=True, search_type=DFS, heuristic_function=None) -> None:
 
-        '''
+
+class Tree:
+    def __init__(
+        self,
+        root: Node,
+        deadends=set(),
+        print_state=True,
+        search_type=DFS,
+        heuristic_function=None,
+    ) -> None:
+
+        """
         Nodes that have already been examined.
-        '''
+        """
         self.closed = {root}
 
-        '''
+        """
         Box positions that are blocked and there exists no way to solution.
-        '''
+        """
         self.deadends: set[tuple[int]] = deadends
 
-        '''
+        """
         Current node being examined in the tree. Initialized with the root node.
-        '''
+        """
         self.current_node = root
 
-        '''
+        """
         Nodes that have been generated, but have not examined.
-        '''
+        """
         self.open: list[Node] = []
 
         if search_type == DFS:
 
-            '''
+            """
             Use stack-like operations on the list.
-            '''
+            """
             self.pop = self.open.pop
             self.insert = self.open.append
 
         elif search_type == A_STAR:
 
-            '''
+            """
             Use priority-queue-like operations on the list.
             heapq uses the Node's __lt__ function to compare priority.
-            '''
+            """
             self.pop = lambda: heapq.heappop(self.open)
             self.insert = lambda node: heapq.heappush(self.open, node)
-        
-        else: raise Exception("Illegal search type.")
 
-        '''
+        else:
+            raise Exception("Illegal search type.")
+
+        """
         Function that calculate h(n).
-        '''
+        """
         self.heuristic_function = heuristic_function
 
         self.print_state = print_state
@@ -211,10 +224,7 @@ class Tree:
 
             if self.current_node.is_goal_node():
                 # Update with the best solution so far
-                if (
-                    not self.best_solution
-                    or self.current_node.g < self.best_solution.g
-                ):
+                if not self.best_solution or self.current_node.g < self.best_solution.g:
                     self.best_solution = self.current_node
 
                 if seek_optimal:
@@ -232,7 +242,11 @@ class Tree:
             next_states = self.current_node.state.generate_possible_next_states()
 
             for state in next_states:
-                new_node = Node(state=state, parent=self.current_node, h_function=self.heuristic_function)
+                new_node = Node(
+                    state=state,
+                    parent=self.current_node,
+                    h_function=self.heuristic_function,
+                )
                 if new_node in self.closed:
                     continue
                 self.insert(new_node)
@@ -412,9 +426,11 @@ class SokobanMap:
         return deadends
 
 
-'''
+"""
 Graphic control class. Used to draw the game to the console.
-'''
+"""
+
+
 class GraphicController:
     SYMBOLS_MAPPINGS = {
         SokobanMap.HERO_CHAR: "☻",
@@ -512,17 +528,21 @@ class GraphicController:
         else:
             print("")
         GraphicController.drawnRows += 1
-        
+
+
 def euclidean_distance(state: State):
     h = 0
     for box in state.boxes:
-        min_distance = float("inf") 
+        min_distance = float("inf")
         for shelf in state.shelves:
-            distance = math.sqrt(abs(shelf[0] - box[0]) ** 2 + abs(shelf[1] - box[1]) ** 2)
+            distance = math.sqrt(
+                abs(shelf[0] - box[0]) ** 2 + abs(shelf[1] - box[1]) ** 2
+            )
             if distance < min_distance:
                 min_distance = distance
         h += min_distance
     return h
+
 
 def main():
     os.system("cls||clear")
@@ -573,7 +593,7 @@ def main():
 
     # AI mode
     else:
-        ''' Default Options '''
+        """Default Options"""
         # Search type
         search_type = DFS
         # h(n) function for a star
@@ -609,7 +629,7 @@ def main():
                 search_type = A_STAR
                 h_function = euclidean_distance
             elif st != "dfs":
-                raise Exception("Illegal search type. Accept only \"dfs\" or \"astar\"")
+                raise Exception('Illegal search type. Accept only "dfs" or "astar"')
         except ValueError:
             pass
 
@@ -622,7 +642,7 @@ def main():
             deadends=map.search_dead_ends(),
             print_state=print_game_state,
             search_type=search_type,
-            heuristic_function=h_function
+            heuristic_function=h_function,
         )
 
         # Start searching for solution
