@@ -1,6 +1,8 @@
 import sys
 import os
 import time
+import heapq
+import math
 
 
 class Move:
@@ -97,17 +99,37 @@ class State:
 
 
 class Node:
-    def __init__(self, state: State, parent=None) -> None:
+    def __init__(self, state: State, parent=None, h_function=None) -> None:
         self.state = state
-        self.height = 0
+
+        '''
+        g(n) = cost of the cheapest path from the initial node to this node.
+        Also equals to the height of the current node.
+        '''
+        self.g = 0
+        
+        '''
+        h(n) = cost of the cheapest path from this node to the goal node.
+        '''
+        self.h = h_function(state) if callable(h_function) else None
+
         if parent and isinstance(parent, Node):
-            self.height = parent.height + 1
+            self.g = parent.g + 1
         self.parent = parent
 
     def __eq__(self, o: object) -> bool:
         if not isinstance(o, Node):
             return False
         return self.state == o.state
+    
+    def __lt__(self, o: object) -> bool:
+        if not isinstance(o, Node):
+            raise Exception("Wrong comparing type: " + str(type(self)) + " and " + str(type(o)))
+        if self.h is None:
+            raise Exception("H value is None")
+        if self.g + self.h == o.g + o.h:
+            return self.g > o.g
+        return self.g + self.h < o.g + o.h
 
     def is_goal_node(self):
         return self.state.is_goal_state()
@@ -115,15 +137,55 @@ class Node:
     def __hash__(self) -> int:
         return self.state.hash
 
-
+DFS = 0
+A_STAR = 1
 class Tree:
-    def __init__(self, root: Node, deadends=set(), print_state=True) -> None:
-        self.open: list[Node] = []
+    def __init__(self, root: Node, deadends=set(), print_state=True, search_type=DFS, heuristic_function=None) -> None:
+
+        '''
+        Nodes that have already been examined.
+        '''
         self.closed = {root}
-        self.deadends: set[Node] = deadends
+
+        '''
+        Box positions that are blocked and there exists no way to solution.
+        '''
+        self.deadends: set[tuple[int]] = deadends
+
+        '''
+        Current node being examined in the tree. Initialized with the root node.
+        '''
         self.current_node = root
-        self.pop = self.open.pop
-        self.insert = self.open.append
+
+        '''
+        Nodes that have been generated, but have not examined.
+        '''
+        self.open: list[Node] = []
+
+        if search_type == DFS:
+
+            '''
+            Use stack-like operations on the list.
+            '''
+            self.pop = self.open.pop
+            self.insert = self.open.append
+
+        elif search_type == A_STAR:
+
+            '''
+            Use priority-queue-like operations on the list.
+            heapq uses the Node's __lt__ function to compare priority.
+            '''
+            self.pop = lambda: heapq.heappop(self.open)
+            self.insert = lambda node: heapq.heappush(self.open, node)
+        
+        else: raise Exception("Illegal search type.")
+
+        '''
+        Function that calculate h(n).
+        '''
+        self.heuristic_function = heuristic_function
+
         self.print_state = print_state
         self.time_init = time.time()
 
@@ -131,10 +193,9 @@ class Tree:
         self.time_limit = None
         self.best_solution: Node = None
 
-    def dfs(self, seek_optimal=False, time_limit=None):
+    def search(self, seek_optimal=False, time_limit=None):
         while True:
-
-            # TODO Make this a separate thread
+            # Print state to console
             if self.print_state:
                 GraphicController.reDraw(self.current_node.state)
             sys.stdout.write("Total nodes visited: " + str(self.total_visited) + " | ")
@@ -144,6 +205,7 @@ class Tree:
                 + "\r"
             )
 
+            # Stop search if time limit is reached
             if time_limit and time.time() - self.time_init > time_limit:
                 return self.best_solution
 
@@ -151,7 +213,7 @@ class Tree:
                 # Update with the best solution so far
                 if (
                     not self.best_solution
-                    or self.current_node.height < self.best_solution.height
+                    or self.current_node.g < self.best_solution.g
                 ):
                     self.best_solution = self.current_node
 
@@ -170,7 +232,7 @@ class Tree:
             next_states = self.current_node.state.generate_possible_next_states()
 
             for state in next_states:
-                new_node = Node(state, self.current_node)
+                new_node = Node(state=state, parent=self.current_node, h_function=self.heuristic_function)
                 if new_node in self.closed:
                     continue
                 self.insert(new_node)
@@ -350,6 +412,9 @@ class SokobanMap:
         return deadends
 
 
+'''
+Graphic control class. Used to draw the game to the console.
+'''
 class GraphicController:
     SYMBOLS_MAPPINGS = {
         SokobanMap.HERO_CHAR: "☻",
@@ -447,7 +512,17 @@ class GraphicController:
         else:
             print("")
         GraphicController.drawnRows += 1
-
+        
+def euclidean_distance(state: State):
+    h = 0
+    for box in state.boxes:
+        min_distance = float("inf") 
+        for shelf in state.shelves:
+            distance = math.sqrt(abs(shelf[0] - box[0]) ** 2 + abs(shelf[1] - box[1]) ** 2)
+            if distance < min_distance:
+                min_distance = distance
+        h += min_distance
+    return h
 
 def main():
     os.system("cls||clear")
@@ -468,6 +543,7 @@ def main():
         print("Something went wrong")
         return
 
+    # Interactive mode, control with arrow keys
     if "-i" in sys.argv:
         GraphicController.reDraw(initial_state)
         import msvcrt
@@ -495,14 +571,19 @@ def main():
                     GraphicController.reDraw(state)
                     GraphicController.print("Steps: " + str(steps))
 
+    # AI mode
     else:
-        ### Default Options ###
+        ''' Default Options '''
+        # Search type
+        search_type = DFS
+        # h(n) function for a star
+        h_function = None
         # Print the state after each node visit
         print_game_state = True
         # Replay the solution after the search completes
         replay = True
         # Number of states that are printed per second when replay the solution
-        frame_rate = 30
+        frame_rate = 10
         # Keep finding optimal solution
         seek_optimal = False
         # Time limit when seek_optimal in seconds
@@ -522,15 +603,35 @@ def main():
             time_limit = int(sys.argv[sys.argv.index("-t") + 1])
         except ValueError:
             pass
+        try:
+            st = sys.argv[sys.argv.index("-s") + 1]
+            if st == "astar":
+                search_type = A_STAR
+                h_function = euclidean_distance
+            elif st != "dfs":
+                raise Exception("Illegal search type. Accept only \"dfs\" or \"astar\"")
+        except ValueError:
+            pass
 
         t1 = time.time()
-        tree = Tree(Node(initial_state), map.search_dead_ends(), print_game_state)
-        if not print_game_state:
-            print("Searching...\n")
         GraphicController.reDraw(initial_state)
-        result = tree.dfs(seek_optimal, time_limit)
+
+        # Init the space tree
+        tree = Tree(
+            root=Node(initial_state),
+            deadends=map.search_dead_ends(),
+            print_state=print_game_state,
+            search_type=search_type,
+            heuristic_function=h_function
+        )
+
+        # Start searching for solution
+        result = tree.search(seek_optimal, time_limit)
+
         if result:
             time_taken = time.time() - t1
+
+            # Draw final state
             os.system("cls||clear")
             GraphicController.reDraw(result.state)
             GraphicController.print(
@@ -540,8 +641,10 @@ def main():
                 + str(time_taken % 60)
                 + "s"
             )
-            GraphicController.print("Steps to solution: " + str(result.height + 1))
+            GraphicController.print("Steps to solution: " + str(result.g + 1))
             GraphicController.print("Total node visited: " + str(len(tree.closed)))
+
+            # Replay the found solution
             if replay:
                 GraphicController.print(
                     "Solution found, press enter to replay the solution..."
@@ -562,7 +665,7 @@ def main():
                         "Replaying solution: "
                         + str(index + 1)
                         + "/"
-                        + str(result.height + 1)
+                        + str(result.g + 1)
                         + " steps"
                     )
                     time.sleep(1 / frame_rate)
