@@ -134,7 +134,7 @@ class Tree:
     def dfs(self, seek_optimal=False, time_limit=None):
         while True:
 
-            # TODO Make this a seperate thread
+            # TODO Make this a separate thread
             if self.print_state:
                 GraphicController.reDraw(self.current_node.state)
             sys.stdout.write("Total nodes visited: " + str(self.total_visited) + " | ")
