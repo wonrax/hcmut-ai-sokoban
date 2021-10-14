@@ -241,7 +241,11 @@ class Tree:
         self.time_limit = None
         self.best_solution: Node = None
 
-    def search(self, seek_optimal=False, time_limit=None):
+    def search(
+        self,
+        seek_optimal=False,  # Continue finding the best solution by traversing through all nodes of the tree
+        time_limit=None,  # Stop searching after time limit is reached, even if seek_optimal is True
+    ):
         """
         Function that starts and keeps track of the search. Search algorithm is determined by self.search_type.
         Generate next nodes, check deadend, insert and pop the open queue to travel the tree.
@@ -650,14 +654,15 @@ def main():
     map: SokobanMap = None
     initial_state: State = None
 
-    # Default map
-    maze_file_path = "src/maps/micro1.txt"
     # Get map path from command argument and create SokobanMap instance
     try:
-        maze_file_path = "maps/" + sys.argv[sys.argv.index("-p") + 1]
+        maze_file_path = sys.argv[sys.argv.index("-p") + 1]
         map = SokobanMap(maze_file_path)
     except ValueError:
-        map = SokobanMap(maze_file_path)
+        print(
+            'Please provide a path to a map with the "-p" option. For example: -p maps/micro1.txt'
+        )
+        return
     except OSError:
         print("Map file not found")
         return
@@ -679,7 +684,7 @@ def main():
         # h(n) function for a star search
         h_function = None
         # Print the state after each node visit
-        print_game_state = True
+        print_game_state = False
         # Replay the solution after the search completes
         replay = True
         # Number of states that are printed per second while replaying the solution
@@ -689,8 +694,8 @@ def main():
         # Time limit when seek_optimal in seconds
         time_limit = None
 
-        if "--no-visual" in sys.argv:
-            print_game_state = False
+        if "--visual" in sys.argv:
+            print_game_state = True
         if "--no-replay" in sys.argv:
             replay = False
         if "--optimal" in sys.argv:
@@ -743,7 +748,7 @@ def main():
                 + "s"
             )
             GraphicController.print("Solution path length: " + str(result.g + 1))
-            GraphicController.print("Total node visited: " + str(len(tree.closed)))
+            GraphicController.print("Total node visited: " + str(tree.total_visited))
 
             # Replay the found solution
             if replay:
