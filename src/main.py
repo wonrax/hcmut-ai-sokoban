@@ -6,6 +6,10 @@ import math
 
 
 class Move:
+    """
+    Move class generating object that performs a move to Left/Right/Up/Down direction.
+    """
+
     DIR_LEFT = 0
     DIR_RIGHT = 1
     DIR_UP = 2
@@ -22,13 +26,13 @@ class Move:
         self.dir = direction
 
     """
-    Return the new location after perform the move
+    Take current position and return the new location after performing the move.
     """
 
-    def move(self, old_location: tuple[int]) -> tuple[int]:
+    def move(self, current_position: tuple[int]) -> tuple[int]:
         return (
-            old_location[0] + Move.DIR_MOVE_MAPPING[self.dir][0],
-            old_location[1] + Move.DIR_MOVE_MAPPING[self.dir][1],
+            current_position[0] + Move.DIR_MOVE_MAPPING[self.dir][0],
+            current_position[1] + Move.DIR_MOVE_MAPPING[self.dir][1],
         )
 
 
@@ -46,10 +50,30 @@ class State:
         walls: set[tuple[int]],
         shelves: set[tuple[int]],
     ) -> None:
+
+        """
+        A tuple that stores the current position of the hero. E.g. (1, 2)
+        """
         self.hero = hero
+
+        """
+        A set of tuples that stores the current position of the walls. E.g. {(1, 2), (1,5)}
+        """
         self.walls = walls
+
+        """
+        A set of tuples that stores the current position of the shelves. E.g. {(1, 2), (1,5)}
+        """
         self.shelves = shelves
+
+        """
+        A set of tuples that stores the current position of the boxes. E.g. {(1, 2), (1,5)}
+        """
         self.boxes = boxes
+
+        """
+        Hash value of the state. Different states should have different hash values.
+        """
         self.hash = hash((self.hero, frozenset(self.boxes)))
 
     def __eq__(self, o: object) -> bool:
@@ -58,6 +82,10 @@ class State:
         return self.hash == o.hash
 
     def next_state(self, direction: Move):
+        """
+        Find the next state given the move direction.
+        """
+
         hero_new_location = direction.move(self.hero)
 
         if hero_new_location in self.walls:
@@ -80,6 +108,9 @@ class State:
         return State(hero_new_location, new_boxes_location, self.walls, self.shelves)
 
     def generate_possible_next_states(self) -> list[object]:
+        """
+        Generate the next possible states from the current state by trying to perform all the move directions.
+        """
         next_states = []
         for direction in [LEFT, RIGHT, UP, DOWN]:
             new_state = self.next_state(direction)
@@ -92,6 +123,10 @@ class State:
         return self.boxes == self.shelves
 
     def check_dead_end(self, deadends) -> bool:
+        """
+        Check if any box in the current state is at the blocked position.
+        """
+
         for box in self.boxes:
             if box in deadends:
                 return True
@@ -207,6 +242,12 @@ class Tree:
         self.best_solution: Node = None
 
     def search(self, seek_optimal=False, time_limit=None):
+        """
+        Function that starts and keeps track of the search. Search algorithm is determined by self.search_type.
+        Generate next nodes, check deadend, insert and pop the open queue to travel the tree.
+        Terminate if reach the time limit.
+        Continue searching for optimal solution if demanded.
+        """
         while True:
             # Print state to console
             if self.print_state:
@@ -233,6 +274,7 @@ class Tree:
 
                 return self.current_node
 
+            # If any of the box is at the blocked position, remove the current state from the open queue
             if self.current_node.state.check_dead_end(self.deadends):
                 if not self.open:
                     break
@@ -262,8 +304,13 @@ class Tree:
 
 
 class SokobanMap:
+    """
+    This class handle map file parsing and converting them to the initial game state.
+    """
 
-    # Characters used in map building and parsing
+    """
+    Characters used in map building and parsing
+    """
     HERO_CHAR = "X"
     SPACE_CHAR = " "
     WALL_CHAR = "#"
@@ -327,6 +374,10 @@ class SokobanMap:
         return max_wall_x, max_wall_y
 
     def search_dead_ends(self):
+        """
+        Search box positions that are blocked and there exists no way to solution.
+        """
+
         CHECK_MAPPINGS = {
             LEFT: (UP, DOWN),
             RIGHT: (UP, DOWN),
@@ -426,12 +477,11 @@ class SokobanMap:
         return deadends
 
 
-"""
-Graphic control class. Used to draw the game to the console.
-"""
-
-
 class GraphicController:
+    """
+    Graphic control class. Used to draw the game to the console.
+    """
+
     SYMBOLS_MAPPINGS = {
         SokobanMap.HERO_CHAR: "☻",
         SokobanMap.BOX_CHAR: "U",
@@ -443,10 +493,16 @@ class GraphicController:
     drawnRows = 0
 
     def print(string):
+        """
+        Custom print function that keeps track of the printed lines.
+        """
         print(string)
         GraphicController.drawnRows += 1
 
     def reDraw(state: State):
+        """
+        Clear and redraw the given game state to the console.
+        """
 
         if state is None:
             return
@@ -530,7 +586,12 @@ class GraphicController:
         GraphicController.drawnRows += 1
 
 
-def euclidean_distance(state: State):
+def euclidean_distance(state: State) -> float:
+    """
+    A heuristic h(n) function that calculate the distance from the given state to the goal state.
+    Return the sum of the minimum distance from a box to any shelve.
+    """
+
     h = 0
     for box in state.boxes:
         min_distance = float("inf")
@@ -544,12 +605,56 @@ def euclidean_distance(state: State):
     return h
 
 
+def run_interactive(initial_state: State):
+    """
+    Run program in interactive mode. User can use arrow keys to control the hero.
+    """
+
+    GraphicController.reDraw(initial_state)
+    GraphicController.print("Interactive mode. Use arrow keys to move.")
+    try:
+        import msvcrt
+    except Exception:
+        print(
+            "Can not import msvcrt module. Please note that interactive mode is only available on Windows."
+        )
+        return
+    state = initial_state
+    steps = 0
+    while True:
+        if msvcrt.kbhit():
+            getChr = msvcrt.getch()
+            new_state = None
+            if getChr == b"K":
+                new_state = state.next_state(LEFT)
+            elif getChr == b"M":
+                new_state = state.next_state(RIGHT)
+            elif getChr == b"H":
+                new_state = state.next_state(UP)
+            elif getChr == b"P":
+                new_state = state.next_state(DOWN)
+            elif getChr == b"\x1b":
+                break
+            if new_state is not None:
+                state = new_state
+                steps += 1
+            if getChr in [b"K", b"M", b"H", b"P"]:
+                GraphicController.reDraw(state)
+                GraphicController.print("Interactive mode. Use arrow keys to move.")
+                GraphicController.print("Steps: " + str(steps))
+
+
 def main():
     os.system("cls||clear")
-    map = None
+
+    map: SokobanMap = None
+    initial_state: State = None
+
+    # Default map
     maze_file_path = "src/maps/micro1.txt"
+    # Get map path from command argument and create SokobanMap instance
     try:
-        maze_file_path = "src/maps/" + sys.argv[sys.argv.index("-p") + 1]
+        maze_file_path = "maps/" + sys.argv[sys.argv.index("-p") + 1]
         map = SokobanMap(maze_file_path)
     except ValueError:
         map = SokobanMap(maze_file_path)
@@ -565,44 +670,19 @@ def main():
 
     # Interactive mode, control with arrow keys
     if "-i" in sys.argv:
-        GraphicController.reDraw(initial_state)
-        import msvcrt
-
-        state = initial_state
-        steps = 0
-        while True:
-            if msvcrt.kbhit():
-                getChr = msvcrt.getch()
-                new_state = None
-                if getChr == b"K":
-                    new_state = state.next_state(LEFT)
-                elif getChr == b"M":
-                    new_state = state.next_state(RIGHT)
-                elif getChr == b"H":
-                    new_state = state.next_state(UP)
-                elif getChr == b"P":
-                    new_state = state.next_state(DOWN)
-                elif getChr == b"\x1b":
-                    break
-                if new_state is not None:
-                    state = new_state
-                    steps += 1
-                if getChr in [b"K", b"M", b"H", b"P"]:
-                    GraphicController.reDraw(state)
-                    GraphicController.print("Steps: " + str(steps))
-
+        run_interactive(initial_state)
     # AI mode
     else:
         """Default Options"""
         # Search type
         search_type = DFS
-        # h(n) function for a star
+        # h(n) function for a star search
         h_function = None
         # Print the state after each node visit
         print_game_state = True
         # Replay the solution after the search completes
         replay = True
-        # Number of states that are printed per second when replay the solution
+        # Number of states that are printed per second while replaying the solution
         frame_rate = 10
         # Keep finding optimal solution
         seek_optimal = False
@@ -648,20 +728,21 @@ def main():
         # Start searching for solution
         result = tree.search(seek_optimal, time_limit)
 
+        # If solution is found
         if result:
             time_taken = time.time() - t1
 
-            # Draw final state
+            # Draw the final state (goal state) and statistics
             os.system("cls||clear")
             GraphicController.reDraw(result.state)
             GraphicController.print(
-                "time-taken: "
+                "Time taken: "
                 + str(int(time_taken / 60))
                 + "m "
-                + str(time_taken % 60)
+                + str(round(time_taken % 60, 2))
                 + "s"
             )
-            GraphicController.print("Steps to solution: " + str(result.g + 1))
+            GraphicController.print("Solution path length: " + str(result.g + 1))
             GraphicController.print("Total node visited: " + str(len(tree.closed)))
 
             # Replay the found solution
@@ -673,12 +754,16 @@ def main():
                 os.system("cls||clear")
                 moves = []
                 node_travel = result
+
+                # Traverse back from the goal node to the root in order to find the moves
                 while True:
                     moves.append(node_travel.state)
                     node_travel = node_travel.parent
                     if not node_travel:
                         break
+
                 moves.reverse()
+
                 for index, move in enumerate(moves):
                     GraphicController.reDraw(move)
                     GraphicController.print(
@@ -689,6 +774,7 @@ def main():
                         + " steps"
                     )
                     time.sleep(1 / frame_rate)
+        # No solution found
         else:
             GraphicController.print("Couldn't find solution")
 
