@@ -2,7 +2,6 @@ import sys
 import os
 import time
 import heapq
-import math
 
 
 class Move:
@@ -109,7 +108,8 @@ class State:
 
     def generate_possible_next_states(self) -> list[object]:
         """
-        Generate the next possible states from the current state by trying to perform all the move directions.
+        Generate the next possible states from the current state by trying to perform all the move
+        directions.
         """
         next_states = []
         for direction in [LEFT, RIGHT, UP, DOWN]:
@@ -247,14 +247,16 @@ class Tree:
 
     def search(
         self,
-        seek_optimal=False,  # Continue finding the best solution by traversing through all nodes of the tree
-        time_limit=None,  # Stop searching after time limit is reached, even if seek_optimal is True
+        # Continue finding the best solution by traversing through all nodes of the tree
+        seek_optimal=False,
+        # Stop searching after time limit is reached, even if seek_optimal is True
+        time_limit=None,
     ):
         """
-        Function that starts and keeps track of the search. Search algorithm is determined by self.search_type.
-        Generate next nodes, check deadend, insert and pop the open queue to travel the tree.
-        Terminate if reach the time limit.
-        Continue searching for optimal solution if demanded.
+        Function that starts and keeps track of the search. Search algorithm is determined by
+        self.search_type. Generate next nodes, check deadend, insert and pop the open queue to
+        travel the tree. Terminate if reach the time limit. Continue searching for optimal solution
+        if demanded.
         """
 
         while True:
@@ -264,7 +266,9 @@ class Tree:
             sys.stdout.write("Total nodes visited: " + str(self.total_visited) + " | ")
             sys.stdout.write(
                 "Node visits per second: "
-                + str(round(self.total_visited / (time.time() - self.time_init + 0.01), 2))
+                + str(
+                    round(self.total_visited / (time.time() - self.time_init + 0.01), 2)
+                )
                 + "\r"
             )
 
@@ -283,7 +287,8 @@ class Tree:
 
                 return self.current_node
 
-            # If any of the box is at the blocked position, remove the current state from the open queue
+            # If any of the box is at the blocked position, remove the current state from
+            # the open queue
             if self.current_node.state.check_dead_end(self.deadends):
                 if not self.open:
                     break
@@ -605,8 +610,7 @@ def euclidean_distance(state: State) -> float:
     for box in state.boxes:
         min_distance = float("inf")
         for shelf in state.shelves:
-            distance = \
-                abs(shelf[0] - box[0]) + abs(shelf[1] - box[1])
+            distance = abs(shelf[0] - box[0]) + abs(shelf[1] - box[1])
             if distance < min_distance:
                 min_distance = distance
         h += min_distance
@@ -616,7 +620,8 @@ def euclidean_distance(state: State) -> float:
 def euclidean_distance_upgraded(state: State) -> float:
     """
     A heuristic h(n) function that calculate the distance from the given state to the goal state.
-    Return the sum of the minimum distance from a box to any shelve and the sum of the distance from the hero to the unfilled boxes.
+    Return the sum of the minimum distance from a box to any shelve and the sum of the distance
+    from the hero to the unfilled boxes.
     """
 
     h = 0
@@ -624,9 +629,8 @@ def euclidean_distance_upgraded(state: State) -> float:
     for box in state.boxes:
         if box in state.shelves:
             continue
-        distance = \
-            abs(state.hero[0] - box[0]) + abs(state.hero[1] - box[1])
-        
+        distance = abs(state.hero[0] - box[0]) + abs(state.hero[1] - box[1])
+
         h += distance
 
     return h + euclidean_distance(state)
@@ -643,7 +647,8 @@ def run_interactive(initial_state: State):
         import msvcrt
     except Exception:
         print(
-            "Can not import msvcrt module. Please note that interactive mode is only available on Windows."
+            "Can not import msvcrt module. Please note that interactive mode is only available "
+            + "on Windows."
         )
         return
     state = initial_state
@@ -687,7 +692,8 @@ def main():
         )
         return
     except OSError:
-        print("Map file not found")
+        print("Map file not found. Please specify the relative path from your currently working " +
+        "directory.\nFor example: python src/main.py -p src/maps/micro1.txt")
         return
 
     if map:
