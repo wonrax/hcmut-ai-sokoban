@@ -265,7 +265,7 @@ class Tree:
                 GraphicController.reDraw(self.current_node.state)
             sys.stdout.write("Total nodes visited: " + str(self.total_visited) + " | ")
             sys.stdout.write(
-                "Node visits per second: "
+                "Average speed: "
                 + str(
                     round(self.total_visited / (time.time() - self.time_init + 0.01), 2)
                 )
