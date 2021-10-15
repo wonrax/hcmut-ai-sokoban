@@ -623,7 +623,7 @@ class GraphicController:
         GraphicController.drawnRows += 1
 
 
-def euclidean_distance(state: State) -> float:
+def heuristic_distance_box_shelf(state: State) -> float:
     """
     A heuristic h(n) function that calculate the distance from the given state to the goal state.
     Return the sum of the minimum distance from a box to any shelve.
@@ -640,7 +640,7 @@ def euclidean_distance(state: State) -> float:
     return h
 
 
-def euclidean_distance_upgraded(state: State) -> float:
+def heuristic_distance_combined(state: State) -> float:
     """
     A heuristic h(n) function that calculate the distance from the given state to the goal state.
     Return the sum of the minimum distance from a box to any shelve and the sum of the distance
@@ -656,7 +656,7 @@ def euclidean_distance_upgraded(state: State) -> float:
 
         h += distance
 
-    return h + euclidean_distance(state)
+    return h + heuristic_distance_box_shelf(state)
 
 
 def run_interactive(initial_state: State):
@@ -766,7 +766,7 @@ def main():
             st = sys.argv[sys.argv.index("-s") + 1]
             if st == "astar":
                 search_type = A_STAR
-                h_function = euclidean_distance_upgraded
+                h_function = heuristic_distance_combined
             elif st != "dfs":
                 raise Exception('Illegal search type. Accept only "dfs" or "astar"')
         except ValueError:
