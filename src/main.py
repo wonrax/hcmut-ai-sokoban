@@ -158,14 +158,18 @@ class Node:
         return self.state == o.state
 
     def __lt__(self, o: object) -> bool:
+
         if not isinstance(o, Node):
             raise Exception(
                 "Wrong comparing type: " + str(type(self)) + " and " + str(type(o))
             )
+
         if self.h is None:
             raise Exception("H value is None")
+
         if self.g + self.h == o.g + o.h:
             return self.g > o.g
+
         return self.g + self.h < o.g + o.h
 
     def is_goal_node(self):
@@ -252,6 +256,7 @@ class Tree:
         Terminate if reach the time limit.
         Continue searching for optimal solution if demanded.
         """
+
         while True:
             # Print state to console
             if self.print_state:
@@ -259,7 +264,7 @@ class Tree:
             sys.stdout.write("Total nodes visited: " + str(self.total_visited) + " | ")
             sys.stdout.write(
                 "Node visits per second: "
-                + str(len(self.closed) / (time.time() - self.time_init + 0.01))
+                + str(round(self.total_visited / (time.time() - self.time_init + 0.01), 2))
                 + "\r"
             )
 
@@ -300,8 +305,8 @@ class Tree:
             if not self.open:
                 break
 
-            self.current_node = self.pop()
             self.closed.add(self.current_node)
+            self.current_node = self.pop()
             self.total_visited += 1
 
         return self.best_solution
@@ -600,13 +605,31 @@ def euclidean_distance(state: State) -> float:
     for box in state.boxes:
         min_distance = float("inf")
         for shelf in state.shelves:
-            distance = math.sqrt(
-                abs(shelf[0] - box[0]) ** 2 + abs(shelf[1] - box[1]) ** 2
-            )
+            distance = \
+                abs(shelf[0] - box[0]) + abs(shelf[1] - box[1])
             if distance < min_distance:
                 min_distance = distance
         h += min_distance
     return h
+
+
+def euclidean_distance_upgraded(state: State) -> float:
+    """
+    A heuristic h(n) function that calculate the distance from the given state to the goal state.
+    Return the sum of the minimum distance from a box to any shelve and the sum of the distance from the hero to the unfilled boxes.
+    """
+
+    h = 0
+
+    for box in state.boxes:
+        if box in state.shelves:
+            continue
+        distance = \
+            abs(state.hero[0] - box[0]) + abs(state.hero[1] - box[1])
+        
+        h += distance
+
+    return h + euclidean_distance(state)
 
 
 def run_interactive(initial_state: State):
@@ -712,7 +735,7 @@ def main():
             st = sys.argv[sys.argv.index("-s") + 1]
             if st == "astar":
                 search_type = A_STAR
-                h_function = euclidean_distance
+                h_function = euclidean_distance_upgraded
             elif st != "dfs":
                 raise Exception('Illegal search type. Accept only "dfs" or "astar"')
         except ValueError:
