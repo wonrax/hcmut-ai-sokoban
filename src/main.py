@@ -42,6 +42,10 @@ DOWN = Move(Move.DIR_DOWN)
 
 
 class State:
+    """
+    A State object represents a certain game state.
+    """
+
     def __init__(
         self,
         hero: tuple[int],
@@ -134,6 +138,11 @@ class State:
 
 
 class Node:
+    """
+    Represents a node on a tree. Contains a State object associated with this node. No 2 nodes
+    have the same identical state.
+    """
+
     def __init__(self, state: State, parent=None, h_function=None) -> None:
         self.state = state
 
@@ -184,6 +193,11 @@ A_STAR = 1
 
 
 class Tree:
+    """
+    The state space tree. Store and manage closed and open Nodes.
+    Use this object to start search process.
+    """
+
     def __init__(
         self,
         root: Node,
@@ -225,7 +239,7 @@ class Tree:
 
             """
             Use priority-queue-like operations on the list.
-            heapq uses the Node's __lt__ function to compare priority.
+            heapq uses the Node class' __lt__ function to compare priority.
             """
             self.pop = lambda: heapq.heappop(self.open)
             self.insert = lambda node: heapq.heappush(self.open, node)
@@ -330,7 +344,7 @@ class SokobanMap:
     WALL_CHAR = "#"
     BOX_CHAR = "U"
     SHELF_CHAR = "*"
-    SHELF_BOX_CHAR = "O"  # the shelf which is filled with a box
+    SHELF_BOX_CHAR = "O"  # the shelf which is currently filled with a box
 
     def __init__(self, mapFilePath) -> None:
         # Hero location
