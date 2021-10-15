@@ -407,6 +407,10 @@ class SokobanMap:
                     check_spaces.add((i, j))
 
         def check_deadend(check_space):
+            """
+            Find and return a set of deadends. A deadend is a position where once the box gets
+            in its place, it can not be moved further to achieve the goal state.
+            """
             if check_space in self.shelves:
                 return False
 
@@ -424,8 +428,25 @@ class SokobanMap:
 
             # Boundary check
             def check_boundary(dir: Move):
+                """
+                This function checks if a box is stuck beside a wall. Meaning it can only move
+                along the wall, but not freely move anywhere else. Return True if it is stuck,
+                otherwise False.
+
+                E.g.:
+
+                ###
+                  #
+                 U#
+                  #
+                ###
+
+                In this state, the box U cannot escape.
+                """
+
                 if dir.move(check_space) in self.walls:
 
+                    # If the position being checked is a shelve, don't mark it as a deadend
                     if check_space[0] in map(lambda x: x[0], self.shelves):
                         return False
                     if check_space[1] in map(lambda x: x[1], self.shelves):
@@ -435,6 +456,7 @@ class SokobanMap:
                     bound_2 = None
                     current_location = check_space
 
+                    # Try moving along the wall to see if it's stuck, THIS direction
                     while True:
                         current_location = CHECK_MAPPINGS[dir][0].move(current_location)
                         if current_location in self.walls:
@@ -449,6 +471,7 @@ class SokobanMap:
                             break
 
                     current_location = check_space
+                    # Try moving along the wall to see if it's stuck, THE OTHER direction
                     while True:
                         current_location = CHECK_MAPPINGS[dir][1].move(current_location)
                         if current_location in self.walls:
@@ -515,7 +538,7 @@ class GraphicController:
 
     def reDraw(state: State):
         """
-        Clear and redraw the given game state to the console.
+        Redraw the given game state to the console.
         """
 
         if state is None:
@@ -692,8 +715,10 @@ def main():
         )
         return
     except OSError:
-        print("Map file not found. Please specify the relative path from your currently working " +
-        "directory.\nFor example: python src/main.py -p src/maps/micro1.txt")
+        print(
+            "Map file not found. Please specify the relative path from your currently working "
+            + "directory.\nFor example: python src/main.py -p src/maps/micro1.txt"
+        )
         return
 
     if map:
