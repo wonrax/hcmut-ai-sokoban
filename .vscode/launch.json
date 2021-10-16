@@ -11,7 +11,7 @@
 			"program": "${workspaceFolder}/src/main.py",
 			"console": "integratedTerminal",
 			"cwd": "${workspaceFolder}",
-			"args": ["--no-visual", "-p", "micro3.txt"]
+			"args": ["-p", "src/maps/micro3.txt", "-s", "astar"]
 		},
 		{
 			"name": "Run interactive",
@@ -20,7 +20,7 @@
 			"program": "${workspaceFolder}/src/main.py",
 			"console": "integratedTerminal",
 			"cwd": "${workspaceFolder}",
-			"args": ["-i"],
+			"args": ["-i", "-p", "src/maps/micro3.txt"],
 		}
 	]
 }
