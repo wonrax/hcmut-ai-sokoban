@@ -37,3 +37,32 @@ Where:
 [-f <frame_per_second>]: The frame rate in which the replay will play after a solution is found.
 
 ```
+
+### Examples
+```
+> python main.py -p maps/micro1.txt -s astar
+
+Will run a* algorithm for the puzzle micro1.txt
+```
+
+```
+> python main.py -p maps/micro1.txt -s astar --visual
+
+Will draw the game state after each node visit.
+```
+
+```
+> python main.py -p maps/nabo1.txt -s dfs
+
+Will run depth first search algorithm for the puzzle nabo1.txt
+```
+
+```
+> python main.py -p maps/micro2.txt -s dfs --optimal -t 10
+
+Will run depth first search algorithm for micro2.txt, continue searching for optimal solution even if a solution is found, but do not exceed the time limit which is 10.
+```
+
+## Build your custom puzzle
+- Create a text file inside ```maps``` or anywhere you like. You just need to specify the correct file path when you run the program.
+- Refer to the ```SokobanMap``` class in the code for the character being used to build the map.
