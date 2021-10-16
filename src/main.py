@@ -8,17 +8,19 @@ HELP_TEXT = """
 Command:
 
 python main.py –p <path_to_map_file>
-	[-i] [-s (dfs|astar)] [-t <time_in_second>]
-	[-f <frame_per_second> [--optimal]	[--visual]
+	[-h] [-i] [-s (dfs|astar)] [-t <time_in_second>]
+	[-f <frame_per_second>] [--optimal] [--visual]
 	[--no-replay]
 
 Where:
+
+[-h]: Show this help
 
 -p <path_to_map_file>: The path to the map file. e.g. -p maps/nabo1.txt
 
 [-i]: Enable interactive play mode. Use arrow keys to control the hero.
 
-[-s (dfs|astar]: Choose search algorithm. e.g. -s astar
+[-s (dfs|astar)]: Choose search algorithm. e.g. -s astar
 
 [--visual]: Draw state after each node visit. Will greatly decrease the performance.
 
