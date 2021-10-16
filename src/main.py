@@ -4,6 +4,36 @@ import time
 import heapq
 
 
+HELP_TEXT = """
+Command:
+
+python main.py –p <path_to_map_file>
+	[-i] [-s (dfs|astar)] [-t <time_in_second>]
+	[-f <frame_per_second> [--optimal]	[--visual]
+	[--no-replay]
+
+Where:
+
+-p <path_to_map_file>: The path to the map file. e.g. -p maps/nabo1.txt
+
+[-i]: Enable interactive play mode. Use arrow keys to control the hero.
+
+[-s (dfs|astar]: Choose search algorithm. e.g. -s astar
+
+[--visual]: Draw state after each node visit. Will greatly decrease the performance.
+
+[--no-replay]: Do not replay the solution after one is found.
+
+[--optimal]: Continue the search even if a solution is found (seek optimal).
+
+[-t <time_in_second>]: Stop the search after the given time is reached. This option has higher
+privilege than --optimal.
+
+[-f <frame_per_second>]: The frame rate in which the replay will play after a solution is found.
+
+"""
+
+
 class Move:
     """
     Move class generating object that performs a move to Left/Right/Up/Down direction.
@@ -714,7 +744,10 @@ def run_interactive(initial_state: State):
 
 
 def main():
-    os.system("cls||clear")
+
+    if "-h" in sys.argv:
+        print(HELP_TEXT)
+        return
 
     map: SokobanMap = None
     initial_state: State = None
@@ -726,6 +759,7 @@ def main():
     except ValueError:
         print(
             'Please provide a path to a map with the "-p" option. For example: -p maps/micro1.txt'
+            + '\nRun with the "-h" option to view help and instructions.'
         )
         return
     except OSError:
@@ -740,6 +774,8 @@ def main():
     else:
         print("Something went wrong")
         return
+
+    os.system("cls||clear")
 
     # Interactive mode, control with arrow keys
     if "-i" in sys.argv:
