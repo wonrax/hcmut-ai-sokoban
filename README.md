@@ -7,9 +7,9 @@ For ```Introduction to Artificial Intelligence```'s assignment @hcmut.
 - Interactive play. You can control the hero with the arrow keys. **Currently supports only Windows**.
 - AI searching. Use Depth first search or A* to search for solution. Replay the solution if found.
 ## Run the program
-Run with Python 3.9 and newer. No dependency is needed.
+Run with Python 3.9 or newer. No dependency is needed.
 
-If the program can't draw the game correctly, try widen your terminal.
+If the program can't draw the game correctly, try widening your terminal.
 
 **Command:**
 ```
